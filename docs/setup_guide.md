@@ -27,11 +27,15 @@ pip install -r requirements.txt
 
 ## 4. Preparing the Test Cases
 IndiGrader supports up to 100 test cases per question, numbered `00` to `99` (e.g., `input00.txt`, `input99.txt`). 
-**Note on Weightage:** All test cases carry equal weightage. If you want a specific scenario to carry more weight, simply duplicate that test case.
+
+> [!NOTE]
+> **Weightage:** All test cases carry equal weightage. If you want a specific scenario to carry more weight, simply duplicate that test case.
 
 **Public vs. Private Test Cases:**
 There are two distinct and independent testcase directories:
-1. **Server-Side (`testcases/`):** Contains the test cases used for final grading. These are typically hidden private cases. The instructor may choose whether or not to include the public test cases here; the two sets are completely independent. **Important:** The system does not reveal private case inputs, outputs, or diffs to students; they only receive a Pass/Fail verdict.
+1. **Server-Side (`testcases/`):** Contains the test cases used for final grading. These are typically hidden private cases. The instructor may choose whether or not to include the public test cases here; the two sets are completely independent. 
+   > [!IMPORTANT]
+   > The system does not reveal private case inputs, outputs, or diffs to students; they only receive a Pass/Fail verdict.
 2. **Student-Side (`statics/testlab/testcases/`):** Contains only the *public* test cases. Students use this subset to verify their code locally before submitting.
 
 Structure:

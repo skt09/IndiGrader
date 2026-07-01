@@ -2,7 +2,8 @@
 
 IndiGrader is a secure, zero-trust autograding platform designed specifically for closed-network university programming labs. 
 
-**Important limitation:** The grading engine currently only supports input from `stdin` and output to `stdout`.
+> [!IMPORTANT]
+> **Limitation:** The grading engine currently only supports input from `stdin` and output to `stdout`.
 
 ## Documentation
 

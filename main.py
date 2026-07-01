@@ -123,7 +123,13 @@ async def ip_restriction_middleware(request: Request, call_next):
                 content={"detail": "Lab has ended. No more submissions allowed."}
             )
     
-    is_safe_ip = client_ip and client_ip.startswith(lab_config["allowed_subnet"])
+    allowed_subnets = lab_config.get("allowed_subnets", ["127.0."])
+    is_safe_ip = False
+    if client_ip:
+        for subnet in allowed_subnets:
+            if client_ip.startswith(subnet):
+                is_safe_ip = True
+                break
 
     if DEBUG:
         is_safe_ip = True
