@@ -1,0 +1,20 @@
+# Welcome to IndiGrader Lab Kit
+
+This is a template lab kit generated for students.
+
+## Quick Start Instructions
+
+1. **Write your solution:**
+   - Put your solution in the `./CS25B0XX/Q1.c` file (replace `CS25B0XX` with your actual roll number if it wasn't auto-renamed).
+
+2. **Check your work locally:**
+   - Execute the check script to run public test cases locally:
+     ```bash
+     ig check
+     ```
+
+3. **Submit to the autograder:**
+   - Once your solution passes local tests, submit it to the server:
+     ```bash
+     ig submit
+     ```

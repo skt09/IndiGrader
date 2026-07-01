@@ -1,0 +1,269 @@
+#!/bin/bash
+
+# ig (IndiGrader CLI)
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: ig <command> [args...]"
+    echo ""
+    echo "Commands:"
+    echo "  fetch       Fetch a new lab (Usage: ig fetch <course_id> <lab_name>)"
+    echo "  set-server  Set the server URL for a course"
+    echo "  rebind      Rebind your machine's IP to your roll number"
+    echo "  history     View and download past submissions (Usage: ig history <qno>)"
+    echo "  check       Run local tests"
+    echo "  submit      Submit to the autograder"
+    exit 1
+fi
+
+COMMAND=$1
+shift
+
+SCRIPT_NAME=""
+if [ "$COMMAND" == "fetch" ]; then
+    COURSE_ID="$1"
+    LAB_NAME="$2"
+    if [ -z "$COURSE_ID" ] || [ -z "$LAB_NAME" ]; then
+        echo -e "\033[0;31mError: fetch requires course_id and lab_name\033[0m"
+        exit 1
+    fi
+    
+    CONFIG_FILE="$HOME/.config/ig/${COURSE_ID}.conf"
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "\033[0;31mError: Server URL for $COURSE_ID is not configured.\033[0m"
+        echo "Please set it by running: ig set-server $COURSE_ID <server_url>"
+        exit 1
+    fi
+    SERVER_URL=$(cat "$CONFIG_FILE")
+    
+    ROLL_NO=""
+    if [[ "$USER" =~ ^[a-zA-Z]{2}[0-9]{2}[a-zA-Z]{1}[0-9]{3}$ ]]; then
+        ROLL_NO="$USER"
+        echo -e "\033[1;36mDetected Roll Number: $ROLL_NO\033[0m"
+    else
+        read -p "Enter your Roll Number (e.g. CS25B012): " ROLL_NO
+    fi
+    
+    # Capitalize it
+    ROLL_NO=$(echo "$ROLL_NO" | tr '[:lower:]' '[:upper:]')
+    
+    echo "Fetching $LAB_NAME from $SERVER_URL..."
+    curl -s "$SERVER_URL/starter/$ROLL_NO" -o "${LAB_NAME}.zip"
+    
+    if grep -q "Starter kit not found" "${LAB_NAME}.zip" 2>/dev/null || grep -q "not registered" "${LAB_NAME}.zip" 2>/dev/null; then
+        echo "Server rejected the request or kit not found."
+        cat "${LAB_NAME}.zip"
+        rm -f "${LAB_NAME}.zip"
+        exit 1
+    fi
+    
+    echo "Lab $LAB_NAME fetched successfully."
+    unzip -q "${LAB_NAME}.zip"
+    rm -f "${LAB_NAME}.zip"
+    
+    # Rename dummy roll number folder (e.g. CS25B0XX or CSXXXXX) inside the lab if it exists
+    dummy_dir=$(find "$LAB_NAME" -mindepth 1 -maxdepth 1 -type d \( -name "*XX*" -o -name "*XXXX*" -o -name "CSXXXXX" \) | head -n 1)
+    if [ -n "$dummy_dir" ]; then
+        mv "$dummy_dir" "$LAB_NAME/$ROLL_NO"
+        echo -e "\033[1;32mSuccessfully fetched and set up $LAB_NAME for $ROLL_NO!\033[0m"
+    else
+        echo -e "\033[1;32mSuccessfully fetched $LAB_NAME!\033[0m"
+    fi
+    
+    # Drop course tracking file
+    mkdir -p "$LAB_NAME/.ig_course"
+    echo "$COURSE_ID" > "$LAB_NAME/.ig_course/course_id"
+    
+    exit 0
+
+elif [ "$COMMAND" == "set-server" ]; then
+    COURSE_ID="$1"
+    SERVER_URL="$2"
+    if [ -z "$COURSE_ID" ] || [ -z "$SERVER_URL" ]; then
+        echo -e "\033[0;31mError: set-server requires course_id and server_url\033[0m"
+        exit 1
+    fi
+    mkdir -p "$HOME/.config/ig"
+    echo "$SERVER_URL" > "$HOME/.config/ig/${COURSE_ID}.conf"
+    echo -e "\033[1;32mServer URL for $COURSE_ID successfully updated to $SERVER_URL\033[0m"
+    exit 0
+
+elif [ "$COMMAND" == "rebind" ]; then
+    # We don't execute a script for rebind, we handle it internally after traversal
+    SCRIPT_NAME=""
+elif [ "$COMMAND" == "history" ]; then
+    QNO="$1"
+    if [ -z "$QNO" ]; then
+        echo -e "\033[0;31mError: history requires a question number (e.g. ig history Q1)\033[0m"
+        exit 1
+    fi
+    if [[ "$QNO" =~ ^[0-9]+$ ]]; then
+        QNO="Q$QNO"
+    fi
+    SCRIPT_NAME=""
+elif [ "$COMMAND" == "check" ]; then
+    SCRIPT_NAME="check.sh"
+elif [ "$COMMAND" == "submit" ]; then
+    SCRIPT_NAME="submit.sh"
+else
+    echo -e "\033[0;31mError: Unknown command '$COMMAND'\033[0m"
+    exit 1
+fi
+
+# Traverse upwards to find the script and the course tracking file
+CURRENT_DIR="$PWD"
+FOUND_SCRIPT=""
+COURSE_DIR=""
+
+while [ "$CURRENT_DIR" != "/" ]; do
+    if [ -n "$SCRIPT_NAME" ] && [ -z "$FOUND_SCRIPT" ] && [ -f "$CURRENT_DIR/$SCRIPT_NAME" ]; then
+        FOUND_SCRIPT="$CURRENT_DIR/$SCRIPT_NAME"
+    fi
+    if [ -z "$COURSE_DIR" ] && [ -f "$CURRENT_DIR/.ig_course/course_id" ]; then
+        COURSE_DIR="$CURRENT_DIR"
+    fi
+    
+    # Break if we found what we need
+    if [ -n "$COURSE_DIR" ] && { [ -n "$FOUND_SCRIPT" ] || [ -z "$SCRIPT_NAME" ]; }; then
+        break
+    fi
+    CURRENT_DIR=$(dirname "$CURRENT_DIR")
+done
+
+if [ -z "$COURSE_DIR" ]; then
+    echo -e "\033[0;31mError: Could not detect the course. Are you inside a lab folder fetched with ig?\033[0m"
+    exit 1
+fi
+
+COURSE_ID=$(cat "$COURSE_DIR/.ig_course/course_id")
+CONFIG_FILE="$HOME/.config/ig/${COURSE_ID}.conf"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo -e "\033[0;31mError: Server URL for $COURSE_ID is not configured locally.\033[0m"
+    echo "Run: ig set-server $COURSE_ID <url>"
+    exit 1
+fi
+export SERVER_URL=$(cat "$CONFIG_FILE")
+
+# Handle 'rebind' logic directly
+if [ "$COMMAND" == "rebind" ]; then
+    # Extract roll number forcefully to uppercase from the current or parent directory
+    ROLL_NO=""
+    TMP_DIR="$PWD"
+    while [ "$TMP_DIR" != "$COURSE_DIR" ] && [ "$TMP_DIR" != "/" ]; do
+        dir_name=$(basename "$TMP_DIR")
+        if [[ "$dir_name" =~ ^[a-zA-Z]{2}[0-9]{2}[a-zA-Z]{1}[0-9]{3}$ ]]; then
+            ROLL_NO=$(echo "$dir_name" | tr '[:lower:]' '[:upper:]')
+            break
+        fi
+        TMP_DIR=$(dirname "$TMP_DIR")
+    done
+    
+    # Fallback to scanning from COURSE_DIR
+    if [ -z "$ROLL_NO" ]; then
+        for dir in "$COURSE_DIR"/*/; do
+            dir_name=$(basename "$dir")
+            if [[ "$dir_name" =~ ^[a-zA-Z]{2}[0-9]{2}[a-zA-Z]{1}[0-9]{3}$ ]]; then
+                ROLL_NO=$(echo "$dir_name" | tr '[:lower:]' '[:upper:]')
+                break
+            fi
+        done
+    fi
+    
+    if [ -z "$ROLL_NO" ]; then
+        echo -e "\033[0;31mError: Could not automatically determine your Roll Number from directory names.\033[0m"
+        exit 1
+    fi
+
+    echo "Rebinding IP for $ROLL_NO to course $COURSE_ID..."
+    RESPONSE=$(curl -s "$SERVER_URL/rebind/$ROLL_NO")
+    
+    if echo "$RESPONSE" | grep -q "Lab has ended" || echo "$RESPONSE" | grep -q "not registered"; then
+        echo "Failed to rebind. Server response:"
+        echo "$RESPONSE"
+        exit 1
+    fi
+    echo "Successfully rebound IP for $ROLL_NO."
+    exit 0
+fi
+
+# Handle 'history' logic directly
+if [ "$COMMAND" == "history" ]; then
+    echo -e "\033[1;36mFetching history for $QNO from $SERVER_URL...\033[0m"
+    HISTORY_JSON=$(curl -s "$SERVER_URL/api/history/$QNO")
+    
+    if [ -z "$HISTORY_JSON" ] || [ "$HISTORY_JSON" == "[]" ]; then
+        echo -e "\033[0;33mNo submissions found for $QNO.\033[0m"
+        exit 0
+    fi
+    
+    if command -v jq >/dev/null 2>&1; then
+        DETAIL=$(echo "$HISTORY_JSON" | jq -r 'if type == "object" then .detail // empty else empty end')
+        if [ -n "$DETAIL" ]; then
+            echo -e "\033[0;31mError retrieving history:\033[0m"
+            echo "$DETAIL"
+            exit 1
+        fi
+    else
+        if echo "$HISTORY_JSON" | grep -q "detail"; then
+            echo -e "\033[0;31mError retrieving history:\033[0m"
+            echo "$HISTORY_JSON" | grep -o '"detail":"[^"]*"' | cut -d'"' -f4
+            exit 1
+        fi
+    fi
+
+    echo "------------------------------------------------"
+    printf "%-5s | %-25s | %-10s\n" "SN" "Submission Time" "Marks"
+    echo "------------------------------------------------"
+    
+    if command -v jq >/dev/null 2>&1; then
+        echo "$HISTORY_JSON" | jq -r '.[] | "\((.sn | tostring + "     ") | .[0:5]) | \((.timestamp | tostring + "                         ") | .[0:25]) | \((.marks | tostring + "          ") | .[0:10])"' 2>/dev/null
+    else
+        python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    for item in data:
+        print(str(item['sn']).ljust(5) + ' | ' + str(item['timestamp']).ljust(25) + ' | ' + str(item['marks']).ljust(10))
+except Exception as e:
+    print('Error parsing history:', e)
+" "$HISTORY_JSON"
+    fi
+    
+    echo "------------------------------------------------"
+    
+    read -p "Enter the SN to download your code (or 0 to exit): " dl_sn
+    if [ "$dl_sn" -gt 0 ] 2>/dev/null; then
+        echo "Downloading submission $dl_sn..."
+        
+        curl -s -O -J "$SERVER_URL/download/$QNO/$dl_sn"
+        if [ $? -eq 0 ]; then
+            echo -e "\033[1;32mDownload completed!\033[0m"
+        else
+            echo -e "\033[0;31mDownload failed.\033[0m"
+        fi
+    fi
+    exit 0
+fi
+
+if [ -n "$SCRIPT_NAME" ] && [ -z "$FOUND_SCRIPT" ]; then
+    echo -e "\033[0;31mError: Could not find $SCRIPT_NAME in current or parent directories.\033[0m"
+    echo "Make sure you are running this from inside your lab folder!"
+    exit 1
+fi
+
+echo -e "\033[1;30m[ig] Found $SCRIPT_NAME at $FOUND_SCRIPT\033[0m"
+
+# Convert arguments to absolute paths if they are files, 
+# so they don't break when we cd into the parent directory.
+new_args=()
+for arg in "$@"; do
+    if [ -e "$arg" ]; then
+        new_args+=("$(realpath "$arg")")
+    else
+        new_args+=("$arg")
+    fi
+done
+
+# Execute the script from its directory so relative paths inside the script work correctly
+cd "$(dirname "$FOUND_SCRIPT")" || exit 1
+"./$SCRIPT_NAME" "${new_args[@]}"
