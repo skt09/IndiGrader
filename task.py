@@ -6,29 +6,8 @@ import re
 
 from celery import Celery
 
-# Runner configuration map
-RUNNER_CONFIG = {
-    ".c": {
-        "compiled": True,
-        "build_cmd": ["gcc", "{src}", "-lm", "-o", "{out}"],
-        "run_cmd": ["{out}"]
-    },
-    ".cpp": {
-        "compiled": True,
-        "build_cmd": ["g++", "{src}", "-o", "{out}"],
-        "run_cmd": ["{out}"]
-    },
-    ".py": {
-        "compiled": False,
-        "build_cmd": None,
-        "run_cmd": ["python3", "{src}"]
-    },
-    ".awk": {
-        "compiled": False,
-        "build_cmd": None,
-        "run_cmd": ["awk", "-f", "{src}"]
-    }
-}
+# List of allowed file extensions
+ALLOWED_EXTENSIONS = [".c", ".cpp", ".py", ".awk"]
 
 capp = Celery(
     'task',
@@ -60,13 +39,11 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
     ext = ext.lower()
 
     # Validate extension
-    if ext not in RUNNER_CONFIG:
+    if ext not in ALLOWED_EXTENSIONS:
         logs.append(f"ERROR: Unsupported file extension: {ext}\n")
         log_path = os.path.join(std_dir, f"result_{timestamp}.txt")
         with open(log_path, "w") as log_file: log_file.writelines(logs)
         return {"status": "Setup Error", "message": f"Unsupported file type: {ext}"}
-
-    config = RUNNER_CONFIG[ext]
     save_filename = f"{base}_{timestamp}{ext}"
     save_file = os.path.join(std_dir, save_filename)
     executable_path = os.path.join(std_dir, f"submission_{timestamp}.out")

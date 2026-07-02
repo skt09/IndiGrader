@@ -9,6 +9,13 @@ SANDBOX=false
 CONFIG_FILE="config.json"
 TARGET_TESTCASE=""
 
+# Standardized Flags
+CFLAGS="-Wall"
+CXXFLAGS="-Wall"
+LDFLAGS="-lm -lpthread"
+DIFF_FLAGS="-i -w -B"
+
+
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -53,7 +60,7 @@ EXECUTABLE="$SUBMISSION"
 if [[ "$EXT" == ".c" ]]; then
     EXECUTABLE="${SUBMISSION%.c}_exec"
     echo "[LOG] Compiling C source..."
-    if ! gcc -Wall "$SUBMISSION" -lm -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
+    if ! gcc $CFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
         echo "[LOG] Compilation failed:"
         cat "${SUBMISSION}_compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
@@ -62,7 +69,7 @@ if [[ "$EXT" == ".c" ]]; then
 elif [[ "$EXT" == ".cpp" ]]; then
     EXECUTABLE="${SUBMISSION%.cpp}_exec"
     echo "[LOG] Compiling C++ source..."
-    if ! g++ -Wall "$SUBMISSION" -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
+    if ! g++ $CXXFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
         echo "[LOG] Compilation failed:"
         cat "${SUBMISSION}_compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
@@ -135,7 +142,7 @@ run_standard() {
     fi
 
     # Diff
-    if diff -w -B "$actual_output" "$expected_output" > /dev/null 2>&1; then
+    if diff $DIFF_FLAGS "$actual_output" "$expected_output" > /dev/null 2>&1; then
         echo "[VERDICT] $test_name: PASSED (${exec_time}s)"
         return 0
     else
