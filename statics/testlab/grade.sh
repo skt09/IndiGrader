@@ -84,20 +84,50 @@ fi
 
 # Execution function
 run_standard() {
-    local input_file="$1"
+    local input_item="$1"
     local expected_output="$2"
     local sandbox_dir="$3"
     local test_name="$4"
 
-    if [[ ! "$input_file" == /* ]]; then
-        input_file="$PWD/$input_file"
-    fi
     if [[ ! "$expected_output" == /* ]]; then
         expected_output="$PWD/$expected_output"
     fi
 
     mkdir -p "$sandbox_dir"
     local actual_output="$sandbox_dir/stdout.txt"
+
+    # Global Static Injection
+    if [ -d "$TESTCASES_DIR/$QUESTION/static" ]; then
+        cp -r "$TESTCASES_DIR/$QUESTION/static/"* "$sandbox_dir/" 2>/dev/null || true
+    fi
+
+    local stdin_file="/dev/null"
+    local args_file="/dev/null"
+
+    if [ -d "$input_item" ]; then
+        # Directory Mode (Hybrid)
+        cp -r "$input_item/"* "$sandbox_dir/" 2>/dev/null || true
+        if [ -f "$sandbox_dir/stdin.txt" ]; then
+            stdin_file="$sandbox_dir/stdin.txt"
+        fi
+        if [ -f "$sandbox_dir/args.txt" ]; then
+            args_file="$sandbox_dir/args.txt"
+        fi
+    elif [[ "$input_item" == *args*.txt ]]; then
+        # Arg-only Mode
+        if [[ ! "$input_item" == /* ]]; then
+            args_file="$PWD/$input_item"
+        else
+            args_file="$input_item"
+        fi
+    else
+        # Stdin-only Mode
+        if [[ ! "$input_item" == /* ]]; then
+            stdin_file="$PWD/$input_item"
+        else
+            stdin_file="$input_item"
+        fi
+    fi
 
     # Copy executable/source to sandbox_dir so firejail can access it
     local local_exec=$(basename "$EXECUTABLE")
@@ -117,12 +147,18 @@ run_standard() {
         CMD+=("./$local_exec")
     fi
 
+    # Load args
+    local EXTRA_ARGS=()
+    if [ -f "$args_file" ]; then
+        EXTRA_ARGS=($(cat "$args_file"))
+    fi
+
     # Run command
     cd "$sandbox_dir" || exit 1
     # Enforce memory limit and measure time
     (
         ulimit -v "$((MEM_CAP_MB * 1024))"
-        /usr/bin/time -f "%e" -o "time.txt" timeout "${TIMEOUT_SEC}s" "${CMD[@]}" < "$input_file" > "stdout.txt" 2> "stderr.txt"
+        /usr/bin/time -f "%e" -o "time.txt" timeout "${TIMEOUT_SEC}s" "${CMD[@]}" "${EXTRA_ARGS[@]}" < "$stdin_file" > "stdout.txt" 2> "stderr.txt"
     )
     local exit_code=$?
     local exec_time=""
@@ -170,7 +206,7 @@ shopt -s nullglob
 for input_item in "$Q_INPUT_DIR"/*; do
     [ -e "$input_item" ] || continue
     
-    test_case_name=$(basename "$input_item" | sed 's/^input//')
+    test_case_name=$(basename "$input_item" | sed -e 's/^input//' -e 's/^args//')
     if [[ "$test_case_name" == *.txt ]]; then
         test_case_name="${test_case_name%.txt}"
     fi

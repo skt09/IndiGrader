@@ -3,7 +3,7 @@
 IndiGrader is a secure, zero-trust autograding platform designed specifically for closed-network university programming labs. 
 
 > [!IMPORTANT]
-> **Limitation:** The grading engine currently only supports input from `stdin` and output to `stdout`.
+> **Limitation:** The grading engine supports complex file inputs, `stdin`, and command line arguments natively, but grading evaluations are strictly restricted to `stdout` comparisons. Hybrid file outputs are not natively supported and require a custom evaluator script.
 
 ## Documentation
 
@@ -39,6 +39,8 @@ IndiGrader is built with three core philosophies in mind:
 - **Offline Leaderboard:** A premium, zero-dependency dark-mode leaderboard that updates dynamically without external dependencies.
 
 ### Engine & Minute Features
+- **Hybrid Input System:** The engine dynamically detects testcase structures, natively supporting `stdin` streams, space-separated Command Line Arguments (`args.txt`), and complex directory-based inputs requiring external file I/O operations without manual configuration.
+- **Global Static Injection:** Magically injects shared files (like common databases) into all sandboxes automatically, drastically reducing repository redundancy.
 - **Decoupled Grading:** A unified `grade.sh` engine used both locally (for public test cases) and server-side (for hidden test cases) to ensure evaluation parity.
 - **Asynchronous Task Queues:** Powered by Celery and Redis to handle hundreds of concurrent submissions instantly.
 - **Regex Auto-Detection:** Built-in regex engine automatically extracts student Roll Numbers from directory structures, minimizing manual configuration errors.
@@ -46,11 +48,9 @@ IndiGrader is built with three core philosophies in mind:
 
 ## Active Development & Upcoming Features
 
-The following enhancements are already coded and are currently undergoing testing and refinement for the next release:
-- **File I/O Support:** Moving beyond strictly `stdin`/`stdout` to natively support grading programs that read from or write to specified files.
-- **Command Line Arguments:** Ability to pass test-case specific command line arguments directly into the student's executable.
+The following enhancements are in the pipeline for future releases:
 - **Student Makefile Support:** Support for complex multi-file project submissions that rely on a custom `Makefile` for compilation.
-- **Custom Grading Logic:** A raw bash template allowing instructors to inject custom evaluation scripts for advanced scenarios (e.g., partial marking, multiple argument files, connected questions where Q1's output is Q2's input, or tasks requiring multiple make targets).
+- **Custom Grading Logic:** A raw bash template allowing instructors to safely interface their own custom evaluation scripts for advanced scenarios (e.g., partial marking, hybrid file outputs, or connected questions where Q1's output is Q2's input).
 - **Comprehensive Sample Labs:** A `samples/` directory providing out-of-the-box examples for every type of configuration.
 
 ## License

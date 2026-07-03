@@ -9,7 +9,7 @@
 
 ## Code Evaluation Constraints
 The execution environment enforces strict constraints to ensure server stability and security.
-- **I/O Limitations**: The grading engine currently **only supports input from stdin and output to stdout**. Reading from external files or writing to the file system during runtime is not supported.
+- **I/O Limitations**: The grading engine natively handles complex file-based inputs and command line arguments via its Hybrid Input system. However, **evaluation is strictly restricted to comparing `stdout`**. Generated file outputs are not evaluated automatically unless the instructor provides a custom `evaluator.sh` script.
 - **Sandboxing**: Execution is heavily restricted using Firejail when running on the server. Network access is disabled, and process resources are capped according to the configuration.
 - **Supported Languages**:
   - C (compiled with `gcc -lm`)

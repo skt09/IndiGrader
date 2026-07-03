@@ -38,16 +38,43 @@ There are two distinct and independent testcase directories:
    > The system does not reveal private case inputs, outputs, or diffs to students; they only receive a Pass/Fail verdict.
 2. **Student-Side (`statics/testlab/testcases/`):** Contains only the *public* test cases. Students use this subset to verify their code locally before submitting.
 
-Structure:
+### Input Modes (The Strict Separation Rule)
+IndiGrader automatically detects how to execute a student's program based strictly on how you name and structure the items inside the `input/` directory. **You must not mix file types for a single test case.** 
+
+**1. Stdin-Only Mode (Default)**
+If your test case only requires standard input, provide a `.txt` file named `input##.txt`.
+```text
+testcases/Q1/input/
+├── input00.txt
+└── input01.txt
 ```
-testcases/
-└── Q1/
-    ├── input/
-    │   ├── input00.txt
-    │   └── input01.txt
-    └── output/
-        ├── output00.txt
-        └── output01.txt
+
+**2. Arg-Only Mode**
+If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents should be space-separated arguments (e.g., `2 5 6`).
+```text
+testcases/Q1/input/
+├── args00.txt
+└── args01.txt
+```
+
+**3. Hybrid/Directory Mode**
+If a test case requires external files (like a `data.csv`) or a combination of inputs, create a directory named `input##/`. *Everything* inside this directory will be copied into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside it.
+```text
+testcases/Q1/input/
+└── input00/
+    ├── args.txt      # Passed as CLI arguments
+    ├── stdin.txt     # Piped as Standard Input
+    └── data.csv      # Exists next to the executable
+```
+
+### Global Static Files
+If multiple test cases share the exact same files, place them in a `static/` directory. These files are injected into *every* sandbox execution for that question, preventing folder bloat.
+```text
+testcases/Q1/
+├── input/
+├── output/
+└── static/
+    └── common_database.csv
 ```
 
 ## 5. Preparing the Student Starter Kit
