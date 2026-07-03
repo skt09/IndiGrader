@@ -48,10 +48,18 @@ if [ "$COMMAND" == "fetch" ]; then
     
     echo "Fetching $LAB_NAME from $SERVER_URL..."
     curl -s "$SERVER_URL/starter/$ROLL_NO" -o "${LAB_NAME}.zip"
+    CURL_EXIT=$?
+
+    if [ $CURL_EXIT -ne 0 ]; then
+        echo -e "\033[0;31mError: Could not connect to the server at $SERVER_URL. Please ensure the server is live.\033[0m"
+        rm -f "${LAB_NAME}.zip"
+        exit 1
+    fi
     
-    if grep -q "Starter kit not found" "${LAB_NAME}.zip" 2>/dev/null || grep -q "not registered" "${LAB_NAME}.zip" 2>/dev/null; then
+    if grep -qi "Starter kit not found" "${LAB_NAME}.zip" 2>/dev/null || grep -qi "not registered" "${LAB_NAME}.zip" 2>/dev/null; then
         echo "Server rejected the request or kit not found."
         cat "${LAB_NAME}.zip"
+        echo ""
         rm -f "${LAB_NAME}.zip"
         exit 1
     fi

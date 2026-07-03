@@ -50,21 +50,27 @@ testcases/Q1/input/
 ```
 
 **2. Arg-Only Mode**
-If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents should be space-separated arguments (e.g., `2 5 6`).
+If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents of this file are read and passed directly to the student's executable as arguments. For example, if `args00.txt` contains `2 5 6`, the program is executed as `./executable 2 5 6`.
 ```text
 testcases/Q1/input/
 ├── args00.txt
 └── args01.txt
 ```
 
-**3. Hybrid/Directory Mode**
-If a test case requires external files (like a `data.csv`) or a combination of inputs, create a directory named `input##/`. *Everything* inside this directory will be copied into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside it.
+**3. Hybrid/Directory Mode (Used for File IO & CLA)**
+If a test case requires external files (like a `data.csv`, or an input file to be read via `fopen`), or a combination of inputs, create a directory named `input##/`. *Everything* inside this directory will be copied securely into the sandbox's working directory alongside the student's executable. 
+
+The system automatically looks for `args.txt` and `stdin.txt` inside this directory:
+- `args.txt`: Contains the command-line arguments. If your program expects a file name as an argument (e.g. `./executable data.csv`), `args.txt` should simply contain the text `data.csv`.
+- `stdin.txt`: Contains any text that needs to be piped via Standard Input.
+- Any other files (like `data.csv` or `test.txt`) are just copied directly so the C code can open them.
+
 ```text
 testcases/Q1/input/
 └── input00/
-    ├── args.txt      # Passed as CLI arguments
-    ├── stdin.txt     # Piped as Standard Input
-    └── data.csv      # Exists next to the executable
+    ├── args.txt      # Contains: data.csv 10
+    ├── stdin.txt     # Piped as Standard Input (optional)
+    └── data.csv      # Copied to sandbox; program opens this file
 ```
 
 ### Global Static Files
@@ -85,11 +91,15 @@ Students download a zip file to start their lab. Prepare this inside the `static
 4. Create a dummy starter code folder (e.g., `CS25B0XX/Q1.c`).
 5. Create a subset of public test cases in `testcases/` (so students can test locally without seeing hidden edge cases).
 6. Create the hidden configuration directory `.ig_course/` and copy the `config.json` inside it.
-7. Zip the directory:
+7. Zip the directory to create the downloadable starter kit:
 ```bash
 cd statics
-zip -r testlab.zip testlab
+zip -qr testlab.zip testlab
 ```
+
+> [!IMPORTANT]
+> **Why do I have to zip it manually?** 
+> Zip files are intentionally excluded from version control to prevent the repository from becoming bloated with binary artifacts over time. Therefore, **you MUST manually zip the starter kit folder** before starting the server, otherwise the `ig fetch` command will fail because the server won't have a `.zip` file to serve!
 
 ## 6. Distributing the CLI Tool
 1. Edit `clients/setup.sh`. Update the `COURSE_ID` and `DEFAULT_SERVER_URL` at the top of the file.

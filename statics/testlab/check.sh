@@ -112,8 +112,12 @@ grade_student() {
                 echo "----------------------------------------" >> "$log_file"
                 echo "SUMMARY: Passed $passed / $total" >> "$log_file"
             elif [[ "$line" == \[LOG\]* ]]; then
-                # Optional: echo to terminal if you want logs visible during grading
-                :
+                local log_text="${line#\[LOG\] }"
+                if [[ "$log_text" == *"error"* || "$log_text" == *"failed"* || "$log_text" == *"Error"* || "$log_text" == *"Failed"* ]]; then
+                    echo -e "      ${RED}${log_text}${NC}"
+                else
+                    echo -e "      ${log_text}"
+                fi
             fi
         done < <("$GRADE_SH_PATH" --submission "$submission_file" --question "$question" --testcases_dir "$TESTCASES_DIR" --config "$CONFIG_PATH" ${TARGET_TESTCASE:+-t "$TARGET_TESTCASE"})
 

@@ -71,7 +71,7 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
     
     logs.append(f"INFO: Running grading script...\n")
     
-    run_proc = subprocess.run(grade_cmd, capture_output=True, text=True)
+    run_proc = subprocess.run(grade_cmd, capture_output=True, text=True, errors="replace")
     grade_output = run_proc.stdout
     
     results = {}
@@ -105,6 +105,11 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
     logs.append("\n--- FINAL RESULTS ---\n")
     for test, result in results.items():
         logs.append(f"{test}: {result}\n")
+
+    if results.get("Compilation") == "COMPILATION_ERROR":
+        with open(log_path, "w") as log_file: log_file.writelines(logs)
+        with open(marks_log, "a") as f: f.write(f"{timestamp}, 0\n")
+        return {"status": "Compilation Error", "details": "".join(logs)}
 
     with open(log_path, "w") as log_file: log_file.writelines(logs)
 
