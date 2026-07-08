@@ -1,96 +1,162 @@
-# Out-of-the-Box Template
+# IndiGrader Lab Setup Guide
 
-This is the standard, production-ready grading template for IndiGrader. It provides a full environment designed for evaluating typical programming assignments (like C, C++, Python, and AWK) relying on standard input/output comparisons, without requiring custom evaluators.
+This guide explains how to properly scaffold and deploy an IndiGrader lab environment using the automated `builder.py` wizard. 
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
 - Python 3.9+
 - Redis Server (`sudo apt install redis-server`)
 - Firejail (`sudo apt install firejail`)
+- jq (`sudo apt install jq`)
 
-## 2. Server Installation & Offline Deployment
-Because strict lab environments often lack internet access, the recommended workflow is to prepare the system offline:
-1. **Prepare Locally:** Configure `config.json`, and set up your `testcases/` and `statics/` folders on your personal machine within this template folder.
-2. **Package & Transfer:** Zip this entire configured `out_of_the_box` directory and transfer it to the lab's main server.
-3. **Install Dependencies:** On the lab server, extract the package and install the requirements:
-```bash
-pip install -r requirements.txt
+## 2. Preparing Your Raw Materials
+Before running the builder, you must prepare the raw files for your lab locally on your computer.
+
+1. **Testcases**: Separate your testcases into a `public` folder (for the students to test locally) and a `private` folder (for the server to grade). Inside these folders, you **must** organize your files into `input/` and `output/` directories. 
+
+   Depending on your lab's requirements, structure the contents using one of the three input modes:
+
+   **A. Stdin-Only Mode (Default)**
+   For standard input/output programs.
+   ```text
+   public/
+   ├── input/
+   │   └── input01.txt
+   └── output/
+       └── output01.txt
+   ```
+   
+   **B. Arg-Only Mode**
+   For programs that only read command-line arguments.
+   ```text
+   public/
+   ├── input/
+   │   └── args01.txt
+   └── output/
+       └── output01.txt
+   ```
+   
+   **C. Hybrid/Directory Mode (File IO & CLA)**
+   For programs that need external data files, arguments, and/or stdin simultaneously.
+   ```text
+   public/
+   ├── input/
+   │   └── input01/          <-- Must be a directory
+   │       ├── args.txt      (optional command-line arguments)
+   │       ├── stdin.txt     (optional standard input)
+   │       └── data.csv      (any extra files the student code needs to read)
+   └── output/
+       └── output01.txt      <-- Flat file for the expected output
+   ```
+2. **Student Lists**: Keep a `students.txt` containing all roll numbers (e.g., `CS25B001, John Doe`).
+3. **PwD List**: Keep a `pwd_students.txt` containing the roll numbers of PwD students who receive extra time.
+4. **Starter Code**: Prepare the `starter.c` file that students will build upon.
+5. **Problem Statement**: Prepare the global `prob_statement.pdf`.
+
+**Example Raw Material Structure:**
+```text
+my_raw_lab/
+├── prob_statement.pdf
+├── students.txt
+├── pwd_students.txt
+├── starter.c
+└── testcases_Q1/
+    ├── public/
+    │   ├── input/
+    │   │   └── input01.txt
+    │   └── output/
+    │       └── output01.txt
+    └── private/
+        ├── input/
+        │   └── input02.txt
+        └── output/
+            └── output02.txt
 ```
-*(Note: If the lab server is completely air-gapped, you may need to download the pip packages offline beforehand).*
 
-## 3. Configuration
-1. **`config.json`**: Edit the root configuration file to define your lab's parameters.
-   - `start_time` / `end_time`: Enforces strict submission deadlines.
-   - `allowed_subnet`: e.g., `"192.168.1."` to restrict access strictly to the lab's local network.
-   - `questions`: List the questions (e.g., `["Q1", "Q2"]`) and their constraints.
-   - **Makefile Projects**: To support multi-file projects needing a `Makefile`, set `"makefile": true`. The engine will run `make` on the student's submission. Use `"executable_name": "target_name"` to define what binary the `make` command produces (defaults to the question name, e.g., `Q1`).
-2. **`pwd_students.txt`**: Add the roll numbers of Persons with Disabilities (PwD) students to this file, one per line. This grants them an exemption from the strict lab `end_time` deadline.
+## 3. Running the Interactive Builder
+Run the automated wizard from the root of the IndiGrader repository:
+```bash
+python3 builder.py
+```
+The wizard will securely ask you for:
+- Course ID, Lab Name, IP configurations
+- Start Date/Time and Durations
+- Testcase paths and memory/timeout limits for each individual question.
 
-## 4. Preparing the Test Cases
-IndiGrader supports up to 100 test cases per question, numbered `00` to `99` (e.g., `input00.txt`, `input99.txt`). 
-
-> [!NOTE]
-> **Weightage:** All test cases carry equal weightage. If you want a specific scenario to carry more weight, simply duplicate that test case.
-
-**Public vs. Private Test Cases:**
-There are two distinct and independent testcase directories:
-1. **Server-Side (`testcases/`):** Contains the test cases used for final grading. These are typically hidden private cases.
-2. **Student-Side (`statics/testlab/testcases/`):** Contains only the *public* test cases for local verification.
-
-### Input Modes (The Strict Separation Rule)
-IndiGrader automatically detects how to execute a student's program based strictly on how you name and structure the items inside the `input/` directory.
-
-**1. Stdin-Only Mode (Default)**
-If your test case only requires standard input, provide a `.txt` file named `input##.txt`.
-
-**2. Arg-Only Mode**
-If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents of this file are read and passed directly to the student's executable as arguments.
-
-**3. Hybrid/Directory Mode (Used for File IO & CLA)**
-If a test case requires external files (like a `data.csv`), create a directory named `input##/`. Everything inside this directory will be copied securely into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside this directory to handle execution parameters.
-
-### Global Static Files
-If multiple test cases share the exact same files, place them in a `static/` directory inside the question's testcase folder (e.g., `testcases/Q1/static/`). These files are injected into *every* sandbox execution for that question before compilation, preventing folder bloat.
-
+### Clever Tips & Tricks for the Builder
 > [!TIP]
 > **LeetCode-Style Assignments**
-> You can use the `static/` folder to simulate a LeetCode-style environment where the student only implements a single function.
-> 1. Set `"makefile": true` in your `config.json`.
-> 2. Place your official, hidden `main.c` (or `main.cpp`) and any required headers inside the `testcases/Q1/static/` directory on the server.
-> 3. Provide the student with a dummy `main.c`, a `solution.c` template, and a `Makefile`.
-> 
-> When the student submits, the server will aggressively overwrite their `main.c` with your trusted version from the `static/` directory before running `make`. This guarantees they cannot bypass the tests by tampering with the `main.c` file!
+> The wizard asks for an optional **global `static/` folder** for a question. If you provide one containing a trusted `main.c` and a `Makefile`, the server will aggressively overwrite the student's `main.c` with your trusted version before compiling. This allows you to force students to only implement a specific `solution.c` without being able to tamper with the test framework!
 
-## 5. Preparing the Student Starter Kit
-Students download a zip file to start their lab. Prepare this inside the `statics/` folder.
-1. Create a directory named after your lab (e.g., `statics/testlab/`).
-2. Add the lab manual (`Problem-Statement.pdf`).
-3. Add the execution scripts: `grade.sh`, `check.sh`, `submit.sh`.
-4. Create the starter code:
-   - For standard labs, create a dummy file (e.g., `CS25B0XX/Q1.c`).
-   - For **Makefile projects**, you MUST create a directory (e.g., `CS25B0XX/Q1/`) and place the `Makefile` inside it.
-5. Create a subset of public test cases in `testcases/`.
-6. Create the hidden configuration directory `.ig_course/` and copy the `config.json` inside it.
-7. Zip the directory to create the downloadable starter kit:
-```bash
-cd statics
-zip -qr testlab.zip testlab
+> [!TIP]
+> **Makefile Projects**
+> The wizard natively supports `Makefile` execution. Simply type `y` when asked if a question uses a Makefile, and provide a folder path instead of a file path for the starter code. The wizard will scaffold the appropriate structure.
+
+## 4. Deploying to the Server
+Once `builder.py` finishes, it will generate a `packageIG_<LabName>.zip` file and a `packageIG_<LabName>` folder at the root of the repository. 
+
+**The Generated Server Structure (`packageIG_L8/`)**:
+```text
+packageIG_L8/
+├── config.json                 # Auto-generated lab configuration
+├── start.sh                    # Server boot script
+├── stop.sh                     # Graceful shutdown script
+├── students.txt                
+├── pwd_students.txt            
+├── .admin/                     # Post-lab grading and sorting scripts
+├── statics/
+│   ├── L8.zip                  # The Student Starter Kit (Fetched via ig)
+│   └── L8/                     # Raw unzipped student starter files
+└── testcases/
+    └── Q1/
+        ├── input/              # ONLY Private inputs
+        └── output/             # ONLY Private outputs
 ```
 
-> [!IMPORTANT]
-> **Why do I have to zip it manually?** 
-> You MUST manually zip the starter kit folder before starting the server, otherwise the `ig fetch` command will fail because the server won't have a `.zip` file to serve!
+1. Transfer `packageIG_<LabName>.zip` to the lab server.
+2. Unzip it.
+3. Start the lab environment!
 
-## 6. Distributing the CLI Tool
-1. Edit `clients/setup.sh`. Update the `COURSE_ID` and `DEFAULT_SERVER_URL` at the top of the file.
-2. Provide students with the command `curl http://<server-ip>:<port>/clients/setup.sh | bash`.
+## 5. Starting the Server
+Inside the extracted folder on the server, you will find `start.sh`. Run it:
+```bash
+chmod +x start.sh
+./start.sh
+```
 
-## 7. Starting the System
-Start the Celery worker to handle evaluations asynchronously:
+**What `start.sh` does:**
+1. Runs strict pre-flight checks to validate your `config.json` and ensure the student `statics/` `.zip` was correctly built.
+2. Starts the Redis broker.
+3. Starts the Celery grading workers in the background.
+4. Starts the FastAPI server to accept submissions.
+
+## 6. Distributing the Lab to Students
+Your students can fetch the starter kit directly from the server.
+1. Provide students with the command `curl http://<server-ip>:<port>/clients/setup.sh | bash`.
+2. They will automatically receive the `ig` command-line tool, fetch the lab, and be locked to their workstation's IP!
+
+## 7. Last-Minute Config Changes (During the Lab)
+Because performance is critical during peak lab hours, FastAPI loads `config.json` into RAM once at startup rather than reading from disk on every single student request. 
+
+If you need to change the lab time, duration, or memory limits on the fly while the lab is running:
+1. Edit the `config.json` file directly on the server (e.g., `nano config.json`).
+2. Restart **just** the FastAPI server using this simple one-liner to force it to reload the file into RAM without disrupting the Celery grading queue:
+   ```bash
+   pkill -f "fastapi run main.py" && fastapi run main.py > logs/fastapi.log 2>&1 &
+   ```
+*(Note: Students who already downloaded the starter kit will still see the old deadline locally in their terminals, but the server is the ultimate source of truth and will correctly accept their late submissions!)*
+
+## 8. Graceful Shutdown (`stop.sh`)
+When the lab is over, **never** hit `Ctrl+C` on the FastAPI server or Celery worker! If you abruptly kill the processes, submissions waiting in the Redis queue will be permanently lost.
+
+Instead, run:
 ```bash
-celery -A task.capp worker --loglevel=info
+./stop.sh
 ```
-Start the FastAPI server:
-```bash
-python main.py
-```
+**What `stop.sh` does:**
+1. Instantly stops FastAPI so no new submissions can enter.
+2. Continually monitors the Redis queue (displaying the remaining length on your terminal).
+3. Waits until the queue hits `0` (meaning all students have been graded).
+4. Safely sends a `SIGTERM` to the Celery workers to let them wrap up.
+
+Once `stop.sh` says "Shutdown Complete!", it is safe to zip the folder and take it back to your local machine for post-lab processing (detailed in `post_lab_guide.md`).

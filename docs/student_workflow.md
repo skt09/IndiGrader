@@ -22,13 +22,9 @@ This command performs several automated tasks:
 
 ## 3. Writing and Testing Code
 The student navigates into their newly created folder (e.g., `cd testlab/CS25B012`) and writes their solution for the questions.
-*Note: The raw scripts (`./check.sh`, `./submit.sh`) must be executed from this root lab directory. However, the `ig` CLI commands (`ig check`, `ig submit`) are context-aware and can be executed from anywhere within your lab folder structure.*
+*Note: The `ig` CLI commands (`ig check`, `ig submit`) are context-aware and can be executed from anywhere within your lab folder structure.*
 
 To verify their code locally against the public test cases, they simply run:
-```bash
-./check.sh
-```
-Or use the CLI wrapper:
 ```bash
 ig check
 ```
@@ -37,10 +33,6 @@ This executes the unified grading engine locally without sandbox constraints, pr
 ## 4. Submitting for Evaluation
 Once confident, the student submits their code to the server's asynchronous queue:
 ```bash
-./submit.sh
-```
-Or use the CLI wrapper:
-```bash
 ig submit
 ```
 - The system automatically packages the active source files.
@@ -48,7 +40,7 @@ ig submit
 - The script polls the server until the grading task is complete and then prints the detailed verdict.
 
 ## 5. Late Submissions
-If a student attempts to submit after the lab deadline has passed, the `submit.sh` script detects this locally.
+If a student attempts to submit after the lab deadline has passed, the `ig submit` script detects this locally.
 - The script pauses and displays a strict warning that they are burning their single allowed late submission and that marks will not be considered.
 - It prompts for explicit confirmation (`yes/no`).
 - If confirmed, the submission is saved to the server's shadow `late_submissions` directory for instructor reference. No grades or results are printed to the student.
