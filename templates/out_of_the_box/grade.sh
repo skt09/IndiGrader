@@ -9,7 +9,7 @@ SANDBOX=false
 CONFIG_FILE="config.json"
 TARGET_TESTCASE=""
 
-# Flags
+# Standardized Flags
 CFLAGS="-Wall"
 CXXFLAGS="-Wall"
 LDFLAGS="-lm -lpthread"
@@ -44,6 +44,8 @@ fi
 EVALUATOR=$(jq -r ".\"$QUESTION\".evaluator // empty" "$CONFIG_FILE" 2>/dev/null)
 TIMEOUT_SEC=$(jq -r ".\"$QUESTION\".timeout // 5" "$CONFIG_FILE" 2>/dev/null)
 MEM_CAP_MB=$(jq -r ".\"$QUESTION\".memory_cap_mb // 512" "$CONFIG_FILE" 2>/dev/null)
+MAKEFILE_MODE=$(jq -r ".\"$QUESTION\".makefile // false" "$CONFIG_FILE" 2>/dev/null)
+EXEC_NAME=$(jq -r ".\"$QUESTION\".executable_name // \"$QUESTION\"" "$CONFIG_FILE" 2>/dev/null)
 
 # Detect extension
 FILENAME=$(basename "$SUBMISSION")
@@ -57,21 +59,44 @@ fi
 # Compilation step (if not using custom evaluator that handles compilation)
 # Actually, we should compile if it's .c or .cpp
 EXECUTABLE="$SUBMISSION"
-if [[ "$EXT" == ".c" ]]; then
-    EXECUTABLE="${SUBMISSION%.c}_exec"
-    echo "[LOG] Compiling C source..."
-    if ! gcc $CFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
+BUILD_DIR=$(mktemp -d -t ig_build_XXXXXX)
+trap 'rm -rf "$BUILD_DIR"' EXIT
+
+if [ "$MAKEFILE_MODE" == "true" ]; then
+    if [ ! -d "$SUBMISSION" ]; then
+        echo "[LOG] Error: Expected a directory for Makefile project, got file: $SUBMISSION"
+        echo "[VERDICT] ALL: COMPILATION_ERROR"
+        exit 1
+    fi
+    echo "[LOG] Compiling via Makefile in temporary sandbox..."
+    cp -r "$SUBMISSION"/* "$BUILD_DIR/"
+    if [ -d "${TESTCASES_DIR}/static" ]; then
+        cp -rf "${TESTCASES_DIR}/static/"* "$BUILD_DIR/" 2>/dev/null
+    fi
+    cd "$BUILD_DIR" || exit 1
+    if ! make > "compile_log.txt" 2>&1; then
         echo "[LOG] Compilation failed:"
-        cat "${SUBMISSION}_compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
+        cat "compile_log.txt" | while read -r line; do echo "[LOG] $line"; done
+        echo "[VERDICT] ALL: COMPILATION_ERROR"
+        exit 1
+    fi
+    EXECUTABLE="${BUILD_DIR}/${EXEC_NAME}"
+    cd - >/dev/null
+elif [[ "$EXT" == ".c" ]]; then
+    EXECUTABLE="${BUILD_DIR}/exec"
+    echo "[LOG] Compiling C source..."
+    if ! gcc $CFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${BUILD_DIR}/compile_err.txt"; then
+        echo "[LOG] Compilation failed:"
+        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
         exit 1
     fi
 elif [[ "$EXT" == ".cpp" ]]; then
-    EXECUTABLE="${SUBMISSION%.cpp}_exec"
+    EXECUTABLE="${BUILD_DIR}/exec"
     echo "[LOG] Compiling C++ source..."
-    if ! g++ $CXXFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${SUBMISSION}_compile_err.txt"; then
+    if ! g++ $CXXFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${BUILD_DIR}/compile_err.txt"; then
         echo "[LOG] Compilation failed:"
-        cat "${SUBMISSION}_compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
+        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
         exit 1
     fi

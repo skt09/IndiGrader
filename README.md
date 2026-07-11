@@ -3,7 +3,15 @@
 IndiGrader is a secure, zero-trust autograding platform designed specifically for closed-network university programming labs. 
 
 > [!IMPORTANT]
-> **Limitation:** The grading engine supports complex file inputs, `stdin`, and command line arguments natively, but grading evaluations are strictly restricted to `stdout` comparisons. Hybrid file outputs are not natively supported and require a custom evaluator script.
+> **Limitation:** The grading engine supports complex file inputs, `stdin`, and command line arguments natively, but standard grading evaluations are strictly restricted to `stdout` comparisons. Hybrid file outputs are not natively supported and require a custom evaluator script (see Templates below).
+
+## Templates & Samples
+
+IndiGrader v2.1 introduces a template-based architecture to cater to different assignment styles:
+
+- **[Out-of-the-Box Template](templates/out_of_the_box/README.md):** The standard, production-ready environment. Natively evaluates single-file C, C++, Python, and AWK, and also fully supports multi-file **Makefile** projects directly out of the box!
+- **[Custom Evaluator Template](templates/custom_evaluator/README.md):** Provides a guided boilerplate for creating custom evaluation scripts for advanced grading scenarios (e.g., partial marking, tolerances, JSON parsing).
+- **[Samples](samples/):** An empty directory designed for future ready-to-use example configurations.
 
 ## Documentation
 
@@ -45,13 +53,6 @@ IndiGrader is built with three core philosophies in mind:
 - **Asynchronous Task Queues:** Powered by Celery and Redis to handle hundreds of concurrent submissions instantly.
 - **Regex Auto-Detection:** Built-in regex engine automatically extracts student Roll Numbers from directory structures, minimizing manual configuration errors.
 - **Multi-Question & Multi-Language Support:** A single lab environment natively supports multiple questions (e.g., Q1, Q2) and multiple programming languages (C, C++, Python, AWK) simultaneously, dynamically detecting the language based on the file extension.
-
-## Active Development & Upcoming Features
-
-The following enhancements are in the pipeline for future releases:
-- **Student Makefile Support:** Support for complex multi-file project submissions that rely on a custom `Makefile` for compilation.
-- **Custom Grading Logic:** A raw bash template allowing instructors to safely interface their own custom evaluation scripts for advanced scenarios (e.g., partial marking, hybrid file outputs, or connected questions where Q1's output is Q2's input).
-- **Comprehensive Sample Labs:** A `samples/` directory providing out-of-the-box examples for every type of configuration.
 
 ## License
 This project is licensed under the [MIT License](LICENSE).

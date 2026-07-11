@@ -66,7 +66,7 @@ process_question() {
         elif [ -d "./${ROLL_NO}/${Q_NO}" ]; then
             echo -e "${YELLOW}Directory found for ${Q_NO}. Auto-tarring...${NC}"
             cd "./${ROLL_NO}" || exit 1
-            tar -czf "${Q_NO}.tar.gz" "${Q_NO}"
+            tar --exclude="*.o" --exclude="*.out" --exclude="*.exe" --exclude="${Q_NO}_exec" -czf "${Q_NO}.tar.gz" "${Q_NO}"
             cd - > /dev/null
             FILE_PATH="./${ROLL_NO}/${Q_NO}.tar.gz"
             break

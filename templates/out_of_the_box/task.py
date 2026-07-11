@@ -7,7 +7,7 @@ import re
 from celery import Celery
 
 # List of allowed file extensions
-ALLOWED_EXTENSIONS = [".c", ".cpp", ".py", ".awk"]
+ALLOWED_EXTENSIONS = [".c", ".cpp", ".py", ".awk", ".gz"]
 
 capp = Celery(
     'task',
@@ -59,10 +59,26 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
         with open(log_path, "w") as log_file: log_file.writelines(logs)
         return {"status": "Setup Error", "message": "Could not save file."}
     
+    # Handle Archives for Makefile projects
+    submission_path = save_file
+    if ext == ".gz":
+        extract_dir = os.path.join(std_dir, f"extracted_{timestamp}")
+        os.makedirs(extract_dir, exist_ok=True)
+        try:
+            import tarfile
+            with tarfile.open(save_file, "r:gz") as tar:
+                tar.extractall(path=extract_dir)
+            submission_path = os.path.join(extract_dir, qno_upper)
+            logs.append(f"SUCCESS: Archive extracted to {submission_path}\n")
+        except Exception as e:
+            logs.append(f"ERROR: Failed to extract archive. Reason: {e}\n")
+            with open(log_path, "w") as log_file: log_file.writelines(logs)
+            return {"status": "Setup Error", "message": "Could not extract archive."}
+
     # Evaluate via grade.sh
     grade_cmd = [
         "./grade.sh",
-        "--submission", save_file,
+        "--submission", submission_path,
         "--question", qno_upper,
         "--testcases_dir", "testcases",
         "--sandbox",
