@@ -9,6 +9,13 @@ Ensure the server machine has the following installed:
 - Firejail (`sudo apt install firejail`)
 - jq (`sudo apt install jq`)
 
+It is highly recommended to create a Python virtual environment in your home directory (not in the lab folder) to avoid conflicts. (Note: This setup is only required on the first day if not set up earlier):
+```bash
+python3 -m venv ~/.venv
+source ~/.venv/bin/activate
+pip install -r requirements.txt
+```
+
 ## 2. Preparing Your Raw Materials
 Before running the builder, you must prepare the raw files for your lab locally on your computer.
 
@@ -79,7 +86,8 @@ Run the automated wizard from the root of the IndiGrader repository:
 python3 builder.py
 ```
 The wizard will securely ask you for:
-- Course ID, Lab Name, IP configurations
+- Course ID, Lab Name, Server IP configurations
+- Allowed Subnet: Provide a prefix matching the lab's local network (e.g., `10.21.225.` or `192.168.1.`) to restrict student access.
 - Start Date/Time and Durations
 - Testcase paths and memory/timeout limits for each individual question.
 
@@ -87,6 +95,8 @@ The wizard will securely ask you for:
 > [!TIP]
 > **LeetCode-Style Assignments**
 > The wizard asks for an optional **global `static/` folder** for a question. If you provide one containing a trusted `main.c` and a `Makefile`, the server will aggressively overwrite the student's `main.c` with your trusted version before compiling. This allows you to force students to only implement a specific `solution.c` without being able to tamper with the test framework!
+>
+> **Important Note:** All static files for a question MUST be kept inside a single directory, because the builder only gives you one chance to select a folder for static files. During evaluation, all contents from inside this single directory are aggressively dumped into the root of the sandbox environment.
 
 > [!TIP]
 > **Makefile Projects**

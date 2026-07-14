@@ -5,6 +5,19 @@ import shutil
 import json
 from datetime import datetime, timedelta
 
+CYAN = '\033[1;36m'
+GREEN = '\033[1;32m'
+RED = '\033[0;31m'
+YELLOW = '\033[1;33m'
+RESET = '\033[0m'
+
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    TK_AVAILABLE = True
+except ImportError:
+    TK_AVAILABLE = False
+
 # --- Configuration ---
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(ROOT_DIR, "templates", "out_of_the_box")
@@ -12,13 +25,15 @@ STAGING_DIR = os.path.join(ROOT_DIR, "_build_stage_")
 TESTLAB_DIR = os.path.join(TEMPLATE_DIR, "statics", "testlab")
 
 def print_banner():
-    print("=" * 60)
+    print(CYAN + "=" * 60)
     print("       WELCOME TO INDIGRADER LAB BUILDER (Pre-Lab)")
     print("=" * 60)
     print("Before we begin, ensure you have your testcases ready.")
     print("See docs/setup_guide.md for naming conventions.")
-    print("=" * 60)
-    input("Press [ENTER] to continue...")
+    print("=" * 60 + RESET)
+    resp = input(YELLOW + "Press [ENTER] to continue, or type 'q' to quit: " + RESET).strip().lower()
+    if resp in ['q', 'quit', 'exit']:
+        sys.exit(0)
     print()
 
 def validate_testcases(tc_path, mode):
@@ -26,7 +41,7 @@ def validate_testcases(tc_path, mode):
     mode: 1 (Stdin: input##.txt), 2 (Args: args##.txt), 3 (Hybrid: input##/ dir)
     """
     if not os.path.exists(tc_path):
-        print(f"[-] ERROR: Testcase path '{tc_path}' does not exist.")
+        print(RED + f"[-] ERROR: Testcase path '{tc_path}' does not exist." + RESET)
         return False
     
     # Check if they already provided input/ and output/ folders
@@ -46,7 +61,7 @@ def validate_testcases(tc_path, mode):
         out_files_list = files
 
     if not in_files_list or not out_files_list:
-        print(f"[-] ERROR: Testcase folder '{tc_path}' is empty or missing input/output files.")
+        print(RED + f"[-] ERROR: Testcase folder '{tc_path}' is empty or missing input/output files." + RESET)
         return False
 
     valid_count = 0
@@ -74,7 +89,7 @@ def validate_testcases(tc_path, mode):
             valid_count += 1
 
     if valid_count == 0:
-        print(f"[-] ERROR: No valid testcases found in '{tc_path}' for the selected mode.")
+        print(RED + f"[-] ERROR: No valid testcases found in '{tc_path}' for the selected mode." + RESET)
         return False
 
     return True
@@ -127,65 +142,105 @@ def copy_testcases_to_engine(src_folder, dest_root_folder, mode):
                 else:
                     shutil.copy2(src_item, os.path.join(in_dir, f))
 
+def get_path_input(prompt_text, is_dir=False, allow_blank=False):
+    while True:
+        browse_hint = " (type 'b' to browse)" if TK_AVAILABLE else ""
+        blank_hint = " (leave blank to skip)" if allow_blank else ""
+        user_input = input(CYAN + f"{prompt_text}{blank_hint}{browse_hint}: " + RESET).strip()
+        
+        if allow_blank and user_input == "":
+            return ""
+            
+        if TK_AVAILABLE and user_input.lower() in ['b', 'browse']:
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            try:
+                root.tk.call('set', '::tk::dialog::file::showHiddenVar', '0')
+            except Exception:
+                pass
+            if is_dir:
+                path = filedialog.askdirectory(title=prompt_text)
+            else:
+                path = filedialog.askopenfilename(title=prompt_text)
+            root.destroy()
+            
+            if path:
+                print(GREEN + f"[*] Selected: {path}" + RESET)
+                return path
+            else:
+                print(YELLOW + "[-] Browse cancelled. Please type the path or try again." + RESET)
+                continue
+                
+        if user_input:
+            return user_input
+
 def main():
     if not os.path.exists(TEMPLATE_DIR):
-        print(f"[-] ERROR: Template directory not found at {TEMPLATE_DIR}")
+        print(RED + f"[-] ERROR: Template directory not found at {TEMPLATE_DIR}" + RESET)
         sys.exit(1)
 
     print_banner()
 
     # --- 1. Gather Metadata ---
-    course_id = input("Enter Course ID (e.g., CS1234): ").strip().capitalize()
-    lab_name = input("Enter Lab Name (e.g., L8): ").strip()
-    server_ip = input("Enter Lab Server IP (e.g., 10.21.225.10): ").strip()
-    subnet = input("Enter Allowed Subnet (e.g., 10.21.225.): ").strip()
-    date_str = input("Enter Date (YYYY-MM-DD): ").strip()
-    start_time = input("Enter Start Time (2400 format, e.g., 1400): ").strip()
-    duration_mins = int(input("Enter Standard Duration in minutes (e.g., 120): ").strip())
-    pwd_extra = int(input("Enter PWD Extra Time in minutes (e.g., 30): ").strip())
+    course_id = input(CYAN + "Enter Course ID (e.g., CS1234): " + RESET).strip().upper()
+    lab_name = input(CYAN + "Enter Lab Name (e.g., L8): " + RESET).strip().upper()
+    server_ip = input(CYAN + "Enter Lab Server IP (e.g., 10.21.225.10): " + RESET).strip()
+    subnet = input(CYAN + "Enter Allowed Subnet (e.g., 10.21.225.): " + RESET).strip()
+    date_str = input(CYAN + "Enter Date (YYYY-MM-DD): " + RESET).strip()
+    start_time = input(CYAN + "Enter Start Time (2400 format, e.g., 1400): " + RESET).strip()
+    duration_mins = int(input(CYAN + "Enter Standard Duration in minutes (e.g., 120): " + RESET).strip())
+    pwd_extra = int(input(CYAN + "Enter PWD Extra Time in minutes (e.g., 30): " + RESET).strip())
     
     start_dt = datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H%M")
     end_dt = start_dt + timedelta(minutes=duration_mins)
 
     print()
-    students_path = input("Path to students.txt: ").strip()
-    pwd_path = input("Path to pwd_students.txt (leave blank if none): ").strip()
+    students_path = get_path_input("Path to students.txt", is_dir=False, allow_blank=False)
+    pwd_path = get_path_input("Path to pwd_students.txt", is_dir=False, allow_blank=True)
     
     # Global Problem Statement
-    global_prob_stmt = input("Path to global problem statement PDF/MD/TXT (leave blank to skip): ").strip()
+    global_prob_stmt = get_path_input("Path to global problem statement PDF/MD/TXT", is_dir=False, allow_blank=True)
 
-    num_q = int(input("\nNumber of Questions: ").strip())
+    num_q = int(input(CYAN + "\nNumber of Questions: " + RESET).strip())
 
     questions_config = {}
     for i in range(1, num_q + 1):
         q_name = f"Q{i}"
-        print(f"\n--- Configuring {q_name} ---")
+        print(CYAN + f"\n--- Configuring {q_name} ---" + RESET)
         
-        full_marks = float(input(f"Full Marks for {q_name}: ").strip() or "100")
-        timeout = float(input(f"Timeout (seconds) for {q_name}: ").strip() or "5")
-        mem_cap = int(input(f"Memory Cap (MB) for {q_name}: ").strip() or "512")
+        full_marks = float(input(CYAN + f"Full Marks for {q_name}: " + RESET).strip() or "100")
+        timeout = float(input(CYAN + f"Timeout (seconds) for {q_name}: " + RESET).strip() or "5")
+        mem_cap = int(input(CYAN + f"Memory Cap (MB) for {q_name}: " + RESET).strip() or "512")
         
-        is_makefile = input(f"Does {q_name} use a Makefile? (y/N): ").strip().lower() == 'y'
+        is_makefile = input(CYAN + f"Does {q_name} use a Makefile? (y/N): " + RESET).strip().lower() == 'y'
         
-        print("Input Modes:")
+        print(CYAN + "Input Modes:")
         print("  1. Stdin-Only (input##.txt)")
         print("  2. Arg-Only (args##.txt)")
-        print("  3. Hybrid/Directory (input##/ directory containing args.txt, stdin.txt, files)")
-        mode_str = input("Select mode (1/2/3): ").strip()
+        print("  3. Hybrid/Directory (input##/ directory containing args.txt, stdin.txt, files)" + RESET)
+        mode_str = input(CYAN + "Select mode (1/2/3): " + RESET).strip()
         mode = int(mode_str) if mode_str in ['1', '2', '3'] else 1
         
         while True:
-            public_tc = input(f"Path to {q_name} PUBLIC testcases folder (Only for students!): ").strip()
+            public_tc = get_path_input(f"Path to {q_name} PUBLIC testcases folder (Only for students!)", is_dir=True, allow_blank=False)
             if validate_testcases(public_tc, mode):
                 break
                 
         while True:
-            private_tc = input(f"Path to {q_name} PRIVATE testcases folder (Only for server!): ").strip()
+            private_tc = get_path_input(f"Path to {q_name} PRIVATE testcases folder (Only for server!)", is_dir=True, allow_blank=False)
             if validate_testcases(private_tc, mode):
                 break
                 
-        static_folder = input(f"Path to global 'static' files folder for {q_name} (leave blank if none): ").strip()
-        starter_code = input(f"Path to starter code for {q_name} (File if normal, Folder if Makefile. Leave blank for default): ").strip()
+        static_folder = get_path_input(f"Path to global 'static' files folder for {q_name}", is_dir=True, allow_blank=True)
+        starter_code = get_path_input(f"Path to starter code for {q_name} (File if normal, Folder if Makefile)", is_dir=is_makefile, allow_blank=True)
+
+        if not is_makefile and not starter_code:
+            ext = input(CYAN + f"No starter code provided. Expected file extension for {q_name} (e.g., c, cpp, py, sh, awk): " + RESET).strip().lstrip('.')
+            if not ext:
+                ext = 'c'
+        else:
+            ext = ''
 
         questions_config[q_name] = {
             "full_marks": full_marks,
@@ -196,11 +251,12 @@ def main():
             "static_folder": static_folder,
             "starter": starter_code,
             "is_makefile": is_makefile,
-            "mode": mode
+            "mode": mode,
+            "ext": ext
         }
 
     # --- 2. Setup Staging Area ---
-    print("\n[*] Assembling lab environment in staging area...")
+    print(CYAN + "\n[*] Assembling lab environment in staging area..." + RESET)
     if os.path.exists(STAGING_DIR):
         shutil.rmtree(STAGING_DIR)
     shutil.copytree(TEMPLATE_DIR, STAGING_DIR)
@@ -242,7 +298,8 @@ def main():
             "timeout": questions_config[q_name]["timeout"],
             "memory_cap_mb": questions_config[q_name]["memory_cap_mb"],
             "evaluator": None,
-            "makefile": questions_config[q_name]["is_makefile"]
+            "makefile": questions_config[q_name]["is_makefile"],
+            "ext": questions_config[q_name]["ext"]
         }
         if questions_config[q_name]["is_makefile"]:
             config[q_name]["executable_name"] = q_name
@@ -324,12 +381,25 @@ def main():
                 with open(os.path.join(q_folder, "main.c"), "w") as f:
                     f.write("#include <stdio.h>\n\nint main() {\n    // Code here\n    return 0;\n}\n")
         else:
-            starter_dest = os.path.join(student_dummy_dir, f"{q_name}.c")
             if conf["starter"] and os.path.isfile(conf["starter"]):
+                # Preserve the extension of the provided starter file
+                _, actual_ext = os.path.splitext(conf["starter"])
+                starter_dest = os.path.join(student_dummy_dir, f"{q_name}{actual_ext}")
                 copy_and_lf(conf["starter"], starter_dest)
             else:
+                # Use the prompted extension and generate a minimal template
+                starter_dest = os.path.join(student_dummy_dir, f"{q_name}.{conf['ext']}")
                 with open(starter_dest, "w") as f:
-                    f.write("#include <stdio.h>\n\nint main() {\n    // Code here\n    return 0;\n}\n")
+                    if conf['ext'] == 'c':
+                        f.write("#include <stdio.h>\n\nint main() {\n    // Code here\n    return 0;\n}\n")
+                    elif conf['ext'] == 'cpp':
+                        f.write("#include <iostream>\nusing namespace std;\n\nint main() {\n    // Code here\n    return 0;\n}\n")
+                    elif conf['ext'] == 'py':
+                        f.write("# Write your Python code here\n")
+                    elif conf['ext'] in ['sh', 'awk']:
+                        f.write("# Write your script here\n")
+                    else:
+                        f.write("// Write your code here\n")
 
     # Ensure statics has a zip
     shutil.make_archive(os.path.join(STAGING_DIR, "statics", lab_name), 'zip', statics_lab_dir)
@@ -338,19 +408,24 @@ def main():
     shutil.rmtree(os.path.join(STAGING_DIR, "statics", "testlab"))
     
     # --- 7. Package Deployment Zip ---
-    print("\n[*] Packaging deployment zip...")
+    print(CYAN + "\n[*] Packaging deployment zip..." + RESET)
     zip_filename = f"packageIG_{lab_name}"
-    zip_filepath = os.path.join(ROOT_DIR, zip_filename)
+    
+    # Create Labs directory
+    labs_dir = os.path.join(ROOT_DIR, "Labs")
+    os.makedirs(labs_dir, exist_ok=True)
+    
+    zip_filepath = os.path.join(labs_dir, zip_filename)
     shutil.make_archive(zip_filepath, 'zip', STAGING_DIR)
     
-    # Instead of deleting, rename staging dir to the package name
-    final_dir = os.path.join(ROOT_DIR, zip_filename)
+    # Instead of deleting, rename staging dir to the package name inside Labs
+    final_dir = os.path.join(labs_dir, zip_filename)
     if os.path.exists(final_dir):
         shutil.rmtree(final_dir)
     os.rename(STAGING_DIR, final_dir)
 
-    print(f"\n[+] Success! {zip_filename}.zip and {zip_filename}/ folder have been generated.")
-    print("[*] You can inspect the folder for last minute checks, and transfer the zip to the lab server.")
+    print(GREEN + f"\n[+] Success! {zip_filename}.zip and {zip_filename}/ folder have been generated in Labs/." + RESET)
+    print(CYAN + "[*] You can inspect the folder for last minute checks, and transfer the zip to the lab server." + RESET)
 
 if __name__ == "__main__":
     main()

@@ -46,7 +46,7 @@ if [ "$COMMAND" == "fetch" ]; then
     # Capitalize it
     ROLL_NO=$(echo "$ROLL_NO" | tr '[:lower:]' '[:upper:]')
     
-    echo "Fetching $LAB_NAME from $SERVER_URL..."
+    echo -e "\033[1;36mFetching $LAB_NAME from $SERVER_URL...\033[0m"
     curl -s "$SERVER_URL/starter/$ROLL_NO" -o "${LAB_NAME}.zip"
     CURL_EXIT=$?
 
@@ -57,15 +57,16 @@ if [ "$COMMAND" == "fetch" ]; then
     fi
     
     if grep -qi "Starter kit not found" "${LAB_NAME}.zip" 2>/dev/null || grep -qi "not registered" "${LAB_NAME}.zip" 2>/dev/null; then
-        echo "Server rejected the request or kit not found."
+        echo -e "\033[0;31mServer rejected the request or kit not found.\033[0m"
         cat "${LAB_NAME}.zip"
         echo ""
         rm -f "${LAB_NAME}.zip"
         exit 1
     fi
     
-    echo "Lab $LAB_NAME fetched successfully."
-    unzip -q "${LAB_NAME}.zip"
+    echo -e "\033[1;32mLab $LAB_NAME fetched successfully.\033[0m"
+    mkdir -p "$LAB_NAME"
+    unzip -q "${LAB_NAME}.zip" -d "$LAB_NAME"
     rm -f "${LAB_NAME}.zip"
     
     # Rename dummy roll number folder (e.g. CS25B0XX or CSXXXXX) inside the lab if it exists
@@ -182,15 +183,15 @@ if [ "$COMMAND" == "rebind" ]; then
         exit 1
     fi
 
-    echo "Rebinding IP for $ROLL_NO to course $COURSE_ID..."
+    echo -e "\033[1;36mRebinding IP for $ROLL_NO to course $COURSE_ID...\033[0m"
     RESPONSE=$(curl -s "$SERVER_URL/rebind/$ROLL_NO")
     
     if echo "$RESPONSE" | grep -q "Lab has ended" || echo "$RESPONSE" | grep -q "not registered"; then
-        echo "Failed to rebind. Server response:"
+        echo -e "\033[0;31mFailed to rebind. Server response:\033[0m"
         echo "$RESPONSE"
         exit 1
     fi
-    echo "Successfully rebound IP for $ROLL_NO."
+    echo -e "\033[1;32mSuccessfully rebound IP for $ROLL_NO.\033[0m"
     exit 0
 fi
 
@@ -241,7 +242,7 @@ except Exception as e:
     
     read -p "Enter the SN to download your code (or 0 to exit): " dl_sn
     if [ "$dl_sn" -gt 0 ] 2>/dev/null; then
-        echo "Downloading submission $dl_sn..."
+        echo -e "\033[1;36mDownloading submission $dl_sn...\033[0m"
         
         curl -s -O -J "$SERVER_URL/download/$QNO/$dl_sn"
         if [ $? -eq 0 ]; then
