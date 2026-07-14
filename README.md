@@ -5,13 +5,12 @@ IndiGrader is a secure, zero-trust autograding platform designed specifically fo
 > [!IMPORTANT]
 > **Limitation:** The grading engine supports complex file inputs, `stdin`, and command line arguments natively, but standard grading evaluations are strictly restricted to `stdout` comparisons. Hybrid file outputs are not natively supported and require a custom evaluator script (see Templates below).
 
-## Templates & Samples
+## Templates
 
 IndiGrader v2.1 introduces a template-based architecture to cater to different assignment styles:
 
 - **[Out-of-the-Box Template](templates/out_of_the_box/README.md):** The standard, production-ready environment. Natively evaluates single-file C, C++, Python, and AWK, and also fully supports multi-file **Makefile** projects directly out of the box!
 - **[Custom Evaluator Template](templates/custom_evaluator/README.md):** Provides a guided boilerplate for creating custom evaluation scripts for advanced grading scenarios (e.g., partial marking, tolerances, JSON parsing).
-- **[Samples](samples/):** An empty directory designed for future ready-to-use example configurations.
 
 ## Documentation
 
@@ -20,6 +19,7 @@ Comprehensive documentation can be found in the `docs/` directory:
 - [Architecture](docs/architecture.md)
 - [Setup Guide](docs/setup_guide.md)
 - [Student Workflow](docs/student_workflow.md)
+- [Post-Lab & Admin Guide](docs/post_lab_guide.md)
 
 ## Acknowledgments & Adoptions
 
