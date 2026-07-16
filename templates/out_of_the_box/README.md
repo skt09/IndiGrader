@@ -1,6 +1,6 @@
 # Out-of-the-Box Template
 
-This is the standard, production-ready grading template for IndiGrader. It provides a full environment designed for evaluating typical programming assignments (like C, C++, Python, and AWK) relying on standard input/output comparisons, without requiring custom evaluators.
+This is the standard evaluation template for IndiGrader. It provides a full environment designed for evaluating typical programming assignments (like C, C++, Python, and AWK) relying on standard input/output comparisons, without requiring custom evaluators.
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
@@ -9,7 +9,7 @@ Ensure the server machine has the following installed:
 - Firejail (`sudo apt install firejail`)
 
 ## 2. Server Installation & Offline Deployment
-Because strict lab environments often lack internet access, the recommended workflow is to prepare the system offline:
+For environments with restricted network access, offline preparation is recommended:
 1. **Prepare Locally:** Configure `config.json`, and set up your `testcases/` and `statics/` folders on your personal machine within this template folder.
 2. **Package & Transfer:** Zip this entire configured `out_of_the_box` directory and transfer it to the lab's main server.
 3. **Install Dependencies:** On the lab server, extract the package and install the requirements:
@@ -21,7 +21,7 @@ source ~/.venv/bin/activate
 
 pip install -r requirements.txt
 ```
-*(Note: If the lab server is completely air-gapped, you may need to download the pip packages offline beforehand).*
+*(Note: If the lab server is air-gapped, you will need to download the pip packages offline beforehand).*
 
 ## 3. Configuration
 1. **`config.json`**: Edit the root configuration file to define your lab's parameters.
@@ -29,21 +29,21 @@ pip install -r requirements.txt
    - `allowed_subnet`: e.g., `"192.168.1."` to restrict access strictly to the lab's local network.
    - `questions`: List the questions (e.g., `["Q1", "Q2"]`) and their constraints.
    - **Makefile Projects**: To support multi-file projects needing a `Makefile`, set `"makefile": true`. The engine will run `make` on the student's submission. Use `"executable_name": "target_name"` to define what binary the `make` command produces (defaults to the question name, e.g., `Q1`).
-2. **`pwd_students.txt`**: Add the roll numbers of Persons with Disabilities (PwD) students to this file, one per line. This grants them an exemption from the strict lab `end_time` deadline.
+2. **`pwd_students.txt`**: Add the roll numbers of Persons with Disabilities (PwD) students to this file, one per line. This grants them an exemption from the standard lab `end_time` deadline.
 
 ## 4. Preparing the Test Cases
 IndiGrader supports up to 100 test cases per question, numbered `00` to `99` (e.g., `input00.txt`, `input99.txt`). 
 
 > [!NOTE]
-> **Weightage:** All test cases carry equal weightage. If you want a specific scenario to carry more weight, simply duplicate that test case.
+> **Weightage:** All test cases carry equal weightage. If you want a specific scenario to carry more weight, duplicate that test case.
 
 **Public vs. Private Test Cases:**
 There are two distinct and independent testcase directories:
 1. **Server-Side (`testcases/`):** Contains the test cases used for final grading. These are typically hidden private cases.
 2. **Student-Side (`statics/testlab/testcases/`):** Contains only the *public* test cases for local verification.
 
-### Input Modes (The Strict Separation Rule)
-IndiGrader automatically detects how to execute a student's program based strictly on how you name and structure the items inside the `input/` directory.
+### Input Modes
+IndiGrader detects how to execute a student's program based on the naming and structure inside the `input/` directory.
 
 **1. Stdin-Only Mode (Default)**
 If your test case only requires standard input, provide a `.txt` file named `input##.txt`.
@@ -52,12 +52,12 @@ If your test case only requires standard input, provide a `.txt` file named `inp
 If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents of this file are read and passed directly to the student's executable as arguments.
 
 **3. Hybrid/Directory Mode (Used for File IO & CLA)**
-If a test case requires external files (like a `data.csv`), create a directory named `input##/`. Everything inside this directory will be copied securely into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside this directory to handle execution parameters.
+If a test case requires external files (like a `data.csv`), create a directory named `input##/`. Everything inside this directory will be copied into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside this directory to handle execution parameters.
 
 ### Global Static Files
-If multiple test cases share the exact same files, place them in a `static/` directory inside the question's testcase folder (e.g., `testcases/Q1/static/`). These files are injected into *every* sandbox execution for that question before compilation, preventing folder bloat.
+If multiple test cases share the same files, place them in a `static/` directory inside the question's testcase folder (e.g., `testcases/Q1/static/`). These files are injected into *every* sandbox execution for that question before compilation.
 
-**Important Note:** When using the `builder.py` wizard, it will prompt you for a single path to your static files folder. Therefore, you MUST keep all your static files for a question together in a single directory on your local machine before running the builder. During evaluation, all contents from inside this single directory are aggressively dumped into the root of the sandbox environment.
+**Important Note:** When using the `builder.py` script, it will prompt for a single path to your static files folder. All static files for a given question must reside within a single directory on your local machine before configuration. During evaluation, the contents of this directory are copied directly into the root of the sandbox environment.
 
 > [!TIP]
 > **LeetCode-Style Assignments**
@@ -66,7 +66,7 @@ If multiple test cases share the exact same files, place them in a `static/` dir
 > 2. Place your official, hidden `main.c` (or `main.cpp`) and any required headers inside the `testcases/Q1/static/` directory on the server.
 > 3. Provide the student with a dummy `main.c`, a `solution.c` template, and a `Makefile`.
 > 
-> When the student submits, the server will aggressively overwrite their `main.c` with your trusted version from the `static/` directory before running `make`. This guarantees they cannot bypass the tests by tampering with the `main.c` file!
+> When the student submits, the server will overwrite their `main.c` with your trusted version from the `static/` directory before running `make`. This ensures the evaluation uses the intended unmodified `main.c`.
 
 ## 5. Preparing the Student Starter Kit
 Students download a zip file to start their lab. Prepare this inside the `statics/` folder.
@@ -85,8 +85,8 @@ zip -qr testlab.zip testlab
 ```
 
 > [!IMPORTANT]
-> **Why do I have to zip it manually?** 
-> You MUST manually zip the starter kit folder before starting the server, otherwise the `ig fetch` command will fail because the server won't have a `.zip` file to serve!
+> **Manual Packaging Requirement** 
+> The starter kit directory must be manually archived as a `.zip` file; the server expects this archive for the `ig fetch` command.
 
 ## 6. Distributing the CLI Tool
 1. Edit `clients/setup.sh`. Update the `COURSE_ID` and `DEFAULT_SERVER_URL` at the top of the file.
@@ -96,7 +96,7 @@ curl http://<server-ip>:<port>/clients/setup.sh | bash
 ```
 
 ## 7. Starting the System
-Instead of starting the components manually, we recommend using the automated scripts generated by the builder:
+We recommend using the automated scripts generated by the builder:
 
 To start the Celery worker and FastAPI server in the background:
 ```bash

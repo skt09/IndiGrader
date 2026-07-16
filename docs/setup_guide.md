@@ -1,6 +1,6 @@
 # IndiGrader Lab Setup Guide
 
-This guide explains how to properly scaffold and deploy an IndiGrader lab environment using the automated `builder.py` wizard. 
+This guide explains how to properly scaffold and deploy an IndiGrader lab environment using the `builder.py` configuration script. 
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
@@ -80,30 +80,29 @@ my_raw_lab/
             └── output02.txt
 ```
 
-## 3. Running the Interactive Builder
-Run the automated wizard from the root of the IndiGrader repository:
+## 3. Running the Configuration Script
+Run the script from the root of the IndiGrader repository:
 ```bash
 python3 builder.py
 ```
-The wizard will securely ask you for:
+The script will prompt for:
 - Course ID, Lab Name, Server IP configurations
 - Allowed Subnet: Provide a prefix matching the lab's local network (e.g., `10.21.225.` or `192.168.1.`) to restrict student access.
 - Start Date/Time and Durations
 - Testcase paths and memory/timeout limits for each individual question.
 
-### Clever Tips & Tricks for the Builder
 > [!TIP]
-> **LeetCode-Style Assignments**
-> The wizard asks for an optional **global `static/` folder** for a question. If you provide one containing a trusted `main.c` and a `Makefile`, the server will aggressively overwrite the student's `main.c` with your trusted version before compiling. This allows you to force students to only implement a specific `solution.c` without being able to tamper with the test framework!
+> **Global Static Files Configuration**
+> The script prompts for an optional global `static/` directory for a question. If provided with a directory containing a trusted `main.c` and a `Makefile`, the server will overwrite the student's `main.c` with this trusted version prior to compilation. This restricts the evaluation to specific source files implemented by the student.
 >
-> **Important Note:** All static files for a question MUST be kept inside a single directory, because the builder only gives you one chance to select a folder for static files. During evaluation, all contents from inside this single directory are aggressively dumped into the root of the sandbox environment.
+> **Important Note:** All static files for a given question must reside within a single directory, as only one path can be provided during configuration. During evaluation, the contents of this directory are copied directly into the root of the sandbox environment.
 
 > [!TIP]
 > **Makefile Projects**
-> The wizard natively supports `Makefile` execution. Simply type `y` when asked if a question uses a Makefile, and provide a folder path instead of a file path for the starter code. The wizard will scaffold the appropriate structure.
+> The script supports `Makefile` execution. Input `y` when prompted if a question uses a Makefile, and provide a directory path rather than a file path for the starter code. The necessary structure will be scaffolded automatically.
 
 ## 4. Deploying to the Server
-Once `builder.py` finishes, it will generate a `packageIG_<LabName>.zip` file and a `packageIG_<LabName>` folder at the root of the repository. 
+Once `builder.py` completes, it generates a `packageIG_<LabName>.zip` archive and a `packageIG_<LabName>` directory at the root of the repository. 
 
 **The Generated Server Structure (`packageIG_L8/`)**:
 ```text
@@ -143,7 +142,7 @@ chmod +x start.sh
 ## 6. Distributing the Lab to Students
 Your students can fetch the starter kit directly from the server.
 1. Provide students with the command `curl http://<server-ip>:<port>/clients/setup.sh | bash`.
-2. They will automatically receive the `ig` command-line tool, fetch the lab, and be locked to their workstation's IP!
+2. This script retrieves the `ig` command-line tool, downloads the lab package, and registers the workstation's IP address on the server.
 
 ## 7. Last-Minute Config Changes (During the Lab)
 Because performance is critical during peak lab hours, FastAPI loads `config.json` into RAM once at startup rather than reading from disk on every single student request. 
@@ -154,17 +153,17 @@ If you need to change the lab time, duration, or memory limits on the fly while 
    ```bash
    pkill -f "fastapi run main.py" && fastapi run main.py > logs/fastapi.log 2>&1 &
    ```
-*(Note: Students who already downloaded the starter kit will still see the old deadline locally in their terminals, but the server is the ultimate source of truth and will correctly accept their late submissions!)*
+*(Note: Clients that have previously downloaded the starter kit will retain the prior deadline locally, but the server maintains the authoritative state and will evaluate late submissions according to the updated configuration).*
 
 ## 8. Graceful Shutdown (`stop.sh`)
-When the lab is over, **never** hit `Ctrl+C` on the FastAPI server or Celery worker! If you abruptly kill the processes, submissions waiting in the Redis queue will be permanently lost.
+When the lab session concludes, avoid terminating the FastAPI server or Celery worker abruptly (e.g., via `Ctrl+C`). Abrupt termination may result in the loss of queued submissions.
 
-Instead, run:
+Instead, execute the shutdown script:
 ```bash
 ./stop.sh
 ```
-**What `stop.sh` does:**
-1. Instantly stops FastAPI so no new submissions can enter.
+**Functionality of `stop.sh`:**
+1. Terminates the FastAPI application to prevent new submissions.
 2. Continually monitors the Redis queue (displaying the remaining length on your terminal).
 3. Waits until the queue hits `0` (meaning all students have been graded).
 4. Safely sends a `SIGTERM` to the Celery workers to let them wrap up.

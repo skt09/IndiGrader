@@ -1,36 +1,37 @@
 # Architecture
 
-IndiGrader utilizes a decentralized client-server architecture designed specifically for closed-network university labs. It optimizes for zero-trust security, strict subnet enforcement, and offline grading capabilities.
+IndiGrader utilizes a client-server architecture optimized for closed-network university labs. The design prioritizes isolated code execution, network-level access control, and offline grading capabilities.
 
 ## System Components
 
-### 1. The FastAPI Server
-The core application server (`main.py`) acts as the gatekeeper and orchestrator. It exposes RESTful endpoints for:
+### 1. Application Server (FastAPI)
+The core server (`main.py`) manages request orchestration and state. It exposes RESTful endpoints for:
 - Fetching starter kits (`/starter/{roll}`)
 - Submitting solutions (`/submit/{qno}`)
-- Checking task status and downloading history
-- Viewing the live leaderboard (`/leaderboard`)
+- Polling task status and retrieving submission history
+- Serving the static leaderboard (`/leaderboard`)
 
-### 2. Zero-Trust IP Middleware
-To prevent impersonation, the server utilizes a strict IP-binding middleware.
-- When a student fetches a starter kit for the first time, their IP is permanently bound to their roll number for the duration of the lab.
-- Any subsequent submission attempts for that roll number from a different IP address are immediately rejected, and the violation is logged in `violations.csv`.
+### 2. IP-Binding Middleware
+To mitigate impersonation, the server implements an IP-binding middleware.
+- Upon the initial fetch of a starter kit, a student's IP address is bound to their roll number for the duration of the session.
+- Subsequent requests for that roll number from differing IP addresses are rejected, and these events are logged in `violations.csv`.
 
 ### 3. Asynchronous Grading Pipeline (Celery + Redis)
-During peak lab hours, hundreds of students may submit simultaneously.
-- Submissions are accepted instantly and pushed to a Redis broker.
-- A Celery worker pool (`task.py`) consumes these tasks in the background.
+To manage high concurrency during lab sessions:
+- Submissions are enqueued to a Redis message broker.
+- A Celery worker pool (`task.py`) processes these tasks asynchronously.
 - The worker executes the grading engine within a Firejail sandbox.
-- Results are logged into the file system, and the student's terminal polls the server for completion.
+- Results are written to the local file system, while the client periodically polls the server for task completion.
 
-### 4. The Unified Grading Engine
-Both the server and the student client rely on a single, unified grading script (`grade.sh`).
-- On the server, `task.py` executes `grade.sh --sandbox` against the hidden private test cases.
-- On the client, `check.sh` executes `grade.sh` (without sandboxing) against the local public test cases.
-- This guarantees absolute parity between local test results and server-side evaluation.
+### 4. Unified Grading Engine
+Both the server and the client utilize the same underlying evaluation script (`grade.sh`).
+- Server-side execution (`task.py`) runs `grade.sh --sandbox` against private test cases.
+- Client-side execution (`check.sh`) runs `grade.sh` (without sandboxing constraints) against public test cases.
+- This unified approach ensures behavioral consistency between local testing and server-side grading.
 
-### 5. Smart CLI Client (`ig`)
-Students interact with the system entirely through the terminal. The `ig` script acts as a smart wrapper that automatically:
-- Resolves the correct `SERVER_URL` via hidden configuration tracking.
-- Determines the active question based on directory traversal.
-- Packages and transmits source files seamlessly.
+### 5. CLI Client (`ig`)
+The primary interface for students is a terminal-based CLI (`ig`). It provides automation for:
+- Resolving the configured `SERVER_URL`.
+- Identifying the active question via directory context.
+- Packaging and transmitting source files to the server.
+

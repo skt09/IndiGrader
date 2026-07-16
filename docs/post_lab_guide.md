@@ -1,34 +1,44 @@
-# IndiGrader Post-Lab Guide
+# Post-Lab Guide
 
-This guide explains how to process student submissions and securely return files to students after you have safely shut down the lab server and downloaded the final folder.
+This guide outlines the procedures for processing student submissions after a lab session has concluded and the server has been safely shut down.
 
-## 1. Post-Lab Processing Utilities
-Inside the `.admin/` directory of your extracted lab, you will find three automated Python utilities designed to process the `submissions/` directory.
+## Post-Lab Processing Utilities
 
-### A. Calculating Grades (`calc_marks.py`)
-Run this script to aggregate all highest scores into a single CSV.
+The `.admin/` directory within the generated lab package contains utilities for processing data in the `submissions/` directory.
+
+### A. Grade Aggregation (`calc_marks.py`)
+
+This script aggregates the highest scores achieved by each student into a consolidated CSV file.
+
 ```bash
 python3 .admin/calc_marks.py
 ```
-**Features:**
-- It parses `students.txt` and guarantees that **every** student in your class gets a row in the CSV.
-- Absent students, or students who submitted nothing, will automatically receive a `0.0`.
-- It outputs `final_grades.csv` at the root.
 
-### B. Extracting for MOSS (`sort_q.py`)
-Run this script if you need to perform plagiarism checking.
+**Functionality:**
+- Parses `students.txt` to ensure an entry exists for all registered students.
+- Assigns a score of `0.0` to absent students or those without valid submissions.
+- Outputs the results to `final_grades.csv` in the root directory.
+
+### B. Plagiarism Check Preparation (`sort_q.py`)
+
+This script reorganizes submissions to facilitate plagiarism detection (e.g., using MOSS).
+
 ```bash
 python3 .admin/sort_q.py
 ```
-- It scans the submissions, isolates the single highest-scoring source file for each student, and copies them into `highest_submissions_by_q/Q1/`.
-- This creates a perfect flat directory of `CS25B001.c`, `CS25B002.c`, etc., which is ideal for uploading to MOSS.
 
-### C. Extracting for TA Review (`sort_stu.py`)
-Run this script if TAs need to manually review the code.
+**Functionality:**
+- Iterates through the submission records and isolates the highest-scoring source file for each student.
+- Copies the identified files into a flat directory structure structured by question (e.g., `highest_submissions_by_q/Q1/CS25B001.c`).
+
+### C. Manual Review Preparation (`sort_stu.py`)
+
+This script organizes submissions into a student-centric directory structure for manual review by teaching assistants.
+
 ```bash
 python3 .admin/sort_stu.py
 ```
-- It organizes the highest-scoring files by student folder (e.g., `highest_submissions_by_stu/CS25B001/Q1.c`).
-- It guarantees that a folder is created for every student in `students.txt`, even if it is completely empty.
 
-
+**Functionality:**
+- Groups the highest-scoring files by student roll number (e.g., `highest_submissions_by_stu/CS25B001/Q1.c`).
+- Ensures a directory is initialized for every student listed in `students.txt`, including those without submissions.
