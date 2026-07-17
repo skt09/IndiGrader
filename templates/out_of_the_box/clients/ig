@@ -56,8 +56,8 @@ if [ "$COMMAND" == "fetch" ]; then
         exit 1
     fi
     
-    if grep -qi "Starter kit not found" "${LAB_NAME}.zip" 2>/dev/null || grep -qi "not registered" "${LAB_NAME}.zip" 2>/dev/null; then
-        echo -e "\033[0;31mServer rejected the request or kit not found.\033[0m"
+    if ! unzip -t -q "${LAB_NAME}.zip" >/dev/null 2>&1; then
+        echo -e "\033[0;31mServer rejected the request or returned an invalid zip file.\033[0m"
         cat "${LAB_NAME}.zip"
         echo ""
         rm -f "${LAB_NAME}.zip"
@@ -65,9 +65,22 @@ if [ "$COMMAND" == "fetch" ]; then
     fi
     
     echo -e "\033[1;32mLab $LAB_NAME fetched successfully.\033[0m"
-    mkdir -p "$LAB_NAME"
-    unzip -q "${LAB_NAME}.zip" -d "$LAB_NAME"
+    
+    TMP_EXTRACT=$(mktemp -d "./.ig_tmp_XXXXXX")
+    unzip -q "${LAB_NAME}.zip" -d "$TMP_EXTRACT"
     rm -f "${LAB_NAME}.zip"
+    
+    mkdir -p "$LAB_NAME"
+    
+    # Prevent double directory if the zip already contains a single root folder named LAB_NAME
+    if [ -d "$TMP_EXTRACT/$LAB_NAME" ] && [ "$(ls -A "$TMP_EXTRACT" | wc -l)" -eq 1 ]; then
+        SRC_DIR="$TMP_EXTRACT/$LAB_NAME"
+    else
+        SRC_DIR="$TMP_EXTRACT"
+    fi
+    
+    find "$SRC_DIR" -mindepth 1 -maxdepth 1 -exec mv {} "$LAB_NAME/" \;
+    rm -rf "$TMP_EXTRACT"
     
     # Rename dummy roll number folder (e.g. CS25B0XX or CSXXXXX) inside the lab if it exists
     dummy_dir=$(find "$LAB_NAME" -mindepth 1 -maxdepth 1 -type d \( -name "*XX*" -o -name "*XXXX*" -o -name "CSXXXXX" \) | head -n 1)

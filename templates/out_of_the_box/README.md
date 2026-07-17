@@ -4,7 +4,8 @@ This is the standard evaluation template for IndiGrader. It provides a full envi
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
-- Python 3.9+
+- Python (3.9 <= version <= 3.12)
+  *Note: Pydantic has not been built for Python 3.14+, so version must be capped at 3.12.*
 - Redis Server (`sudo apt install redis-server`)
 - Firejail (`sudo apt install firejail`)
 

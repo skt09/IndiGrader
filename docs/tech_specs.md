@@ -1,7 +1,7 @@
 # Technical Specifications
 
 ## Core Stack
-- **Web Framework**: FastAPI (Python 3.9+)
+- **Web Framework**: FastAPI (Python 3.9 <= version <= 3.12)
 - **Asynchronous Task Queue**: Celery
 - **Message Broker**: Redis
 - **Containerization/Sandboxing**: Firejail (Linux-only)

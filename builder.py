@@ -402,7 +402,7 @@ def main():
                         f.write("// Write your code here\n")
 
     # Ensure statics has a zip
-    shutil.make_archive(os.path.join(STAGING_DIR, "statics", lab_name), 'zip', statics_lab_dir)
+    shutil.make_archive(os.path.join(STAGING_DIR, "statics", lab_name), 'zip', root_dir=os.path.join(STAGING_DIR, "statics"), base_dir=lab_name)
     
     # Remove the unzipped testlab so it doesn't get deployed as a lab
     shutil.rmtree(os.path.join(STAGING_DIR, "statics", "testlab"))
