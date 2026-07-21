@@ -4,8 +4,7 @@ This guide explains how to properly scaffold and deploy an IndiGrader lab enviro
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
-- Python (3.9 <= version <= 3.12)
-  *Note: Pydantic has not been built for Python 3.14+, so version must be capped at 3.12.*
+- Python 3.9+ (3.12+ recommended)
 - Redis Server (`sudo apt install redis-server`)
 - Firejail (`sudo apt install firejail`)
 - jq (`sudo apt install jq`)
@@ -46,6 +45,7 @@ Before running the builder, you must prepare the raw files for your lab locally 
    
    **C. Hybrid/Directory Mode (File IO & CLA)**
    For programs that need external data files, arguments, and/or stdin simultaneously.
+   *Note: If a program takes a file as a command-line argument (e.g., `./a.out filename.txt`), you must use this mode. Place `filename.txt` in the directory, and create an `args.txt` containing the text `filename.txt`.*
    ```text
    public/
    ├── input/

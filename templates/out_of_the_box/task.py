@@ -76,13 +76,15 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
             return {"status": "Setup Error", "message": "Could not extract archive."}
 
     # Evaluate via grade.sh
+    output_save_dir = os.path.join(std_dir, f"outputs_{timestamp}")
     grade_cmd = [
         "./grade.sh",
         "--submission", submission_path,
         "--question", qno_upper,
         "--testcases_dir", "testcases",
         "--sandbox",
-        "--config", "config.json"
+        "--config", "config.json",
+        "--save_output_dir", output_save_dir
     ]
     
     logs.append(f"INFO: Running grading script...\n")

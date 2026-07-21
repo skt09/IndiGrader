@@ -119,7 +119,7 @@ grade_student() {
                     echo -e "      ${log_text}"
                 fi
             fi
-        done < <("$GRADE_SH_PATH" --submission "$submission_file" --question "$question" --testcases_dir "$TESTCASES_DIR" --config "$CONFIG_PATH" ${TARGET_TESTCASE:+-t "$TARGET_TESTCASE"})
+        done < <("$GRADE_SH_PATH" --submission "$submission_file" --question "$question" --testcases_dir "$TESTCASES_DIR" --config "$CONFIG_PATH" ${TARGET_TESTCASE:+-t "$TARGET_TESTCASE"} --save_output_dir "$ACTUAL_OUTPUT_DIR")
 
     done
 }

@@ -4,8 +4,7 @@ This is the standard evaluation template for IndiGrader. It provides a full envi
 
 ## 1. Prerequisites
 Ensure the server machine has the following installed:
-- Python (3.9 <= version <= 3.12)
-  *Note: Pydantic has not been built for Python 3.14+, so version must be capped at 3.12.*
+- Python 3.9+ (3.12+ recommended)
 - Redis Server (`sudo apt install redis-server`)
 - Firejail (`sudo apt install firejail`)
 
@@ -53,7 +52,8 @@ If your test case only requires standard input, provide a `.txt` file named `inp
 If your test case requires Command Line Arguments (and NO standard input), provide a `.txt` file named `args##.txt`. The contents of this file are read and passed directly to the student's executable as arguments.
 
 **3. Hybrid/Directory Mode (Used for File IO & CLA)**
-If a test case requires external files (like a `data.csv`), create a directory named `input##/`. Everything inside this directory will be copied into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside this directory to handle execution parameters.
+If a test case requires external files (like a `data.csv`), create a directory named `input##/`. Everything inside this directory will be copied into the sandbox. The system automatically looks for `args.txt` and `stdin.txt` inside this directory to handle execution parameters. 
+*Note: If a program takes a file as a command-line argument (e.g., `./a.out filename.txt`), you must use this mode. Place `filename.txt` in the directory, and create an `args.txt` containing the text `filename.txt`.*
 
 ### Global Static Files
 If multiple test cases share the same files, place them in a `static/` directory inside the question's testcase folder (e.g., `testcases/Q1/static/`). These files are injected into *every* sandbox execution for that question before compilation.
