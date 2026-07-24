@@ -5,6 +5,22 @@ IndiGrader is an autograding platform designed for closed-network university pro
 > [!IMPORTANT]
 > **Evaluation Boundary:** The grading engine supports `stdin`, command-line arguments, and file-based inputs. However, default evaluations are restricted to comparing `stdout`. Evaluating file outputs requires a custom evaluator script (refer to the Templates section).
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+- [Architecture](docs/architecture.md)
+- [Technical Specifications](docs/tech_specs.md)
+- [Setup Guide](docs/setup_guide.md)
+- [Student Workflow](docs/student_workflow.md)
+- [Post-Lab & Admin Guide](docs/post_lab_guide.md)
+
+## Templates
+
+IndiGrader utilizes a template-based architecture to support different assignment structures:
+
+- **[Out-of-the-Box Template](templates/out_of_the_box/README.md):** The standard environment for evaluating single-file submissions (C, C++, Python, AWK) and multi-file Makefile projects.
+- **[Custom Evaluator Template](templates/custom_evaluator/README.md):** Boilerplate for implementing custom evaluation logic (e.g., partial marking, tolerance thresholds, or format parsing).
+
 ## Design Principles
 
 IndiGrader's architecture is guided by the following principles:
@@ -31,21 +47,6 @@ IndiGrader's architecture is guided by the following principles:
 - **Data Packaging:** Submissions involving multiple files or directories are compressed automatically for transmission.
 - **Static Leaderboard:** Generates an offline, static HTML leaderboard reflecting the current grading state without requiring a secondary web framework.
 
-## Templates
-
-IndiGrader utilizes a template-based architecture to support different assignment structures:
-
-- **[Out-of-the-Box Template](templates/out_of_the_box/README.md):** The standard environment for evaluating single-file submissions (C, C++, Python, AWK) and multi-file Makefile projects.
-- **[Custom Evaluator Template](templates/custom_evaluator/README.md):** Boilerplate for implementing custom evaluation logic (e.g., partial marking, tolerance thresholds, or format parsing).
-
-## Documentation
-
-Comprehensive documentation is available in the `docs/` directory:
-- [Architecture](docs/architecture.md)
-- [Technical Specifications](docs/tech_specs.md)
-- [Setup Guide](docs/setup_guide.md)
-- [Student Workflow](docs/student_workflow.md)
-- [Post-Lab & Admin Guide](docs/post_lab_guide.md)
 
 ## Acknowledgments & Adoptions
 
