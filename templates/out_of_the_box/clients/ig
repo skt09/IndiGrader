@@ -72,9 +72,11 @@ if [ "$COMMAND" == "fetch" ]; then
     
     mkdir -p "$LAB_NAME"
     
-    # Prevent double directory if the zip already contains a single root folder named LAB_NAME
-    if [ -d "$TMP_EXTRACT/$LAB_NAME" ] && [ "$(ls -A "$TMP_EXTRACT" | wc -l)" -eq 1 ]; then
-        SRC_DIR="$TMP_EXTRACT/$LAB_NAME"
+    # Prevent double directory if the zip already contains a single root folder
+    NUM_ITEMS=$(ls -A "$TMP_EXTRACT" | wc -l)
+    ONLY_ITEM=$(ls -A "$TMP_EXTRACT" | head -n 1)
+    if [ "$NUM_ITEMS" -eq 1 ] && [ -d "$TMP_EXTRACT/$ONLY_ITEM" ]; then
+        SRC_DIR="$TMP_EXTRACT/$ONLY_ITEM"
     else
         SRC_DIR="$TMP_EXTRACT"
     fi

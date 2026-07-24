@@ -8,6 +8,7 @@ TESTCASES_DIR=""
 SANDBOX=false
 CONFIG_FILE="config.json"
 TARGET_TESTCASE=""
+SAVE_OUTPUT_DIR=""
 
 # Standardized Flags
 CFLAGS="-Wall"
@@ -25,6 +26,7 @@ while [[ "$#" -gt 0 ]]; do
         --sandbox) SANDBOX=true ;;
         --config) CONFIG_FILE="$2"; shift ;;
         -t|--testcase) TARGET_TESTCASE="$2"; shift ;;
+        --save_output_dir) SAVE_OUTPUT_DIR="$2"; shift ;;
         *) echo "[LOG] Unknown parameter: $1"; exit 1 ;;
     esac
     shift
@@ -286,6 +288,11 @@ for input_item in "$Q_INPUT_DIR"/*; do
         if [ $exit_code -eq 0 ]; then
             PASSED=$((PASSED + 1))
         fi
+    fi
+
+    if [ -n "$SAVE_OUTPUT_DIR" ]; then
+        mkdir -p "$SAVE_OUTPUT_DIR"
+        cp "$sandbox_dir/stdout.txt" "$SAVE_OUTPUT_DIR/${QUESTION}_output${test_case_name}.txt" 2>/dev/null || true
     fi
 
     rm -rf "$sandbox_dir"
