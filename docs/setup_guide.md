@@ -2,14 +2,22 @@
 
 This guide explains how to properly scaffold and deploy an IndiGrader lab environment using the `builder.py` configuration script. 
 
+> [!IMPORTANT]
+> **Always pull the latest changes** (`git pull`) from the repository before building a new lab to ensure you have the latest features and bug fixes.
+
 ## 1. Prerequisites
-Ensure the server machine has the following installed:
+
+**For the Lab Creator's Machine:**
+- Python 3 to run the builder script. (No external pip dependencies required).
+
+**For the Lab Server:**
+Ensure the machine where the lab will be hosted has the following installed:
 - Python 3.9+ (3.12+ recommended)
 - Redis Server (`sudo apt install redis-server`)
 - Firejail (`sudo apt install firejail`)
 - jq (`sudo apt install jq`)
 
-It is highly recommended to create a Python virtual environment in your home directory (not in the lab folder) to avoid conflicts. (Note: This setup is only required on the first day if not set up earlier):
+It is highly recommended to create a Python virtual environment on the **Lab Server's** home directory (not in the lab folder) to avoid conflicts. (Note: This setup is only required on the first day if not set up earlier):
 ```bash
 python3 -m venv ~/.venv
 source ~/.venv/bin/activate
