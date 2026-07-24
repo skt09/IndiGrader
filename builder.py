@@ -11,12 +11,73 @@ RED = '\033[0;31m'
 YELLOW = '\033[1;33m'
 RESET = '\033[0m'
 
-try:
-    import tkinter as tk
-    from tkinter import filedialog
-    TK_AVAILABLE = True
-except ImportError:
-    TK_AVAILABLE = False
+import subprocess
+import platform
+
+def _detect_file_picker():
+    """Returns the available native file picker backend, or None."""
+    def _cmd_exists(cmd):
+        try:
+            subprocess.run([cmd, "--version"], capture_output=True, check=True)
+            return True
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return False
+
+    if platform.system() == "Darwin":
+        return "osascript"  # macOS — always available
+    if _cmd_exists("zenity"):
+        return "zenity"     # GNOME / Ubuntu
+    if _cmd_exists("kdialog"):
+        return "kdialog"    # KDE
+    try:
+        import tkinter  # noqa: F401
+        return "tkinter"    # Fallback: Python built-in
+    except ImportError:
+        pass
+    return None
+
+FILE_PICKER = _detect_file_picker()
+
+def _native_browse(prompt_text, is_dir=False):
+    """Opens the OS-native file picker. Returns the selected path or empty string."""
+    if FILE_PICKER == "zenity":
+        cmd = ["zenity", "--file-selection", "--title", prompt_text]
+        if is_dir:
+            cmd.append("--directory")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout.strip()
+
+    elif FILE_PICKER == "kdialog":
+        if is_dir:
+            cmd = ["kdialog", "--getexistingdirectory", os.path.expanduser("~"), "--title", prompt_text]
+        else:
+            cmd = ["kdialog", "--getopenfilename", os.path.expanduser("~"), "--title", prompt_text]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout.strip()
+
+    elif FILE_PICKER == "osascript":
+        if is_dir:
+            script = 'tell app "Finder" to POSIX path of (choose folder with prompt "{}" as string)'.format(prompt_text)
+        else:
+            script = 'tell app "Finder" to POSIX path of (choose file with prompt "{}" as string)'.format(prompt_text)
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+        return result.stdout.strip()
+
+    elif FILE_PICKER == "tkinter":
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        try:
+            root.tk.call("set", "::tk::dialog::file::showHiddenVar", "0")
+        except Exception:
+            pass
+        path = filedialog.askdirectory(title=prompt_text) if is_dir else filedialog.askopenfilename(title=prompt_text)
+        root.destroy()
+        return path or ""
+
+    return ""
 
 # --- Configuration ---
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -144,27 +205,15 @@ def copy_testcases_to_engine(src_folder, dest_root_folder, mode):
 
 def get_path_input(prompt_text, is_dir=False, allow_blank=False):
     while True:
-        browse_hint = " (type 'b' to browse)" if TK_AVAILABLE else ""
+        browse_hint = " (type 'b' to browse)" if FILE_PICKER else ""
         blank_hint = " (leave blank to skip)" if allow_blank else ""
         user_input = input(CYAN + f"{prompt_text}{blank_hint}{browse_hint}: " + RESET).strip()
         
         if allow_blank and user_input == "":
             return ""
             
-        if TK_AVAILABLE and user_input.lower() in ['b', 'browse']:
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-            try:
-                root.tk.call('set', '::tk::dialog::file::showHiddenVar', '0')
-            except Exception:
-                pass
-            if is_dir:
-                path = filedialog.askdirectory(title=prompt_text)
-            else:
-                path = filedialog.askopenfilename(title=prompt_text)
-            root.destroy()
-            
+        if FILE_PICKER and user_input.lower() in ['b', 'browse']:
+            path = _native_browse(prompt_text, is_dir=is_dir)
             if path:
                 print(GREEN + f"[*] Selected: {path}" + RESET)
                 return path
