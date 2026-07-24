@@ -4,27 +4,44 @@ This document outlines the standard operational sequence for a student utilizing
 
 ## 1. Initial Tool Installation
 
-Prior to the first lab session, the student executes the provided setup script:
+Prior to the first lab session, the student executes the setup script provided by the instructor. Generally, this looks like:
 
 ```bash
-bash setup.sh
+curl -s <SERVER_URL>/clients/setup.sh | bash
 ```
+*(Replace `<SERVER_URL>` with the actual address, e.g., `http://10.21.225.10:8000`)*
 
 This script installs the `ig` command-line interface (CLI) and configures the environment with a course-specific alias (e.g., `CS101`) mapped to the designated server URL.
 
-## 2. Initiating a Lab Session
-
-To commence a lab, the student executes the fetch command via the course alias. For instance, to fetch a lab named `testlab`:
+### Changing the Server URL
+If the server IP changes for a subsequent lab, you can update it without reinstalling the tool by using the `set-server` command:
 
 ```bash
-CS101 fetch testlab
+ig set-server <COURSE_ID> <NEW_SERVER_URL>
 ```
+*Example: `ig set-server CS101 http://10.21.225.15:8000`*
+
+## 2. Initiating a Lab Session
+
+To commence a lab, the student executes the fetch command via the course alias. For instance, to fetch a lab named `testlab` for a course aliased as `CS101`:
+
+```bash
+CS101 testlab
+```
+
+*(Note: The `CS101` alias automatically invokes `ig fetch CS101 testlab` under the hood. Writing `fetch` is no longer required).*
 
 This procedure performs the following operations:
 - Retrieves the `testlab.zip` archive from the server.
 - Registers the client's IP address with the server for session binding.
 - Extracts the lab directory structure.
-- Auto-detects or prompts for the student's roll number, renaming the template source directory accordingly (e.g., resolving `CS25B0XX` to `CS25B012`).
+- Auto-detects or prompts for the student's roll number, renaming the template source directory accordingly (e.g., setting up a `CS25B012` folder).
+
+### IP Rebinding
+If you switch machines or your network IP changes during an active lab session, you must rebind your new IP to your roll number to continue submitting. Navigate inside your lab folder and run:
+```bash
+ig rebind
+```
 
 ## 3. Local Development and Testing
 
@@ -36,7 +53,9 @@ To evaluate code against the local public test cases, the student executes:
 ig check
 ```
 
-This command runs the grading engine locally, bypassing sandbox constraints, to provide immediate evaluation output.
+This command runs the grading engine locally to provide immediate evaluation output. You can also evaluate a specific question or testcase:
+- `ig check 1` (Runs only Question 1)
+- `ig check 1 4` (Runs only Question 1, Testcase 4)
 
 ## 4. Submitting for Server Evaluation
 

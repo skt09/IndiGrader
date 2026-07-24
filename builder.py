@@ -37,31 +37,34 @@ def _detect_file_picker():
     return None
 
 FILE_PICKER = _detect_file_picker()
+LAST_BROWSED_DIR = os.getcwd()
 
 def _native_browse(prompt_text, is_dir=False):
     """Opens the OS-native file picker. Returns the selected path or empty string."""
+    global LAST_BROWSED_DIR
+    path = ""
     if FILE_PICKER == "zenity":
-        cmd = ["zenity", "--file-selection", "--title", prompt_text]
+        cmd = ["zenity", "--file-selection", "--title", prompt_text, f"--filename={LAST_BROWSED_DIR}/"]
         if is_dir:
             cmd.append("--directory")
         result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.stdout.strip()
+        path = result.stdout.strip()
 
     elif FILE_PICKER == "kdialog":
         if is_dir:
-            cmd = ["kdialog", "--getexistingdirectory", os.path.expanduser("~"), "--title", prompt_text]
+            cmd = ["kdialog", "--getexistingdirectory", LAST_BROWSED_DIR, "--title", prompt_text]
         else:
-            cmd = ["kdialog", "--getopenfilename", os.path.expanduser("~"), "--title", prompt_text]
+            cmd = ["kdialog", "--getopenfilename", LAST_BROWSED_DIR, "--title", prompt_text]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.stdout.strip()
+        path = result.stdout.strip()
 
     elif FILE_PICKER == "osascript":
         if is_dir:
-            script = 'tell app "Finder" to POSIX path of (choose folder with prompt "{}" as string)'.format(prompt_text)
+            script = f'tell app "Finder" to POSIX path of (choose folder with prompt "{prompt_text}" default location POSIX file "{LAST_BROWSED_DIR}")'
         else:
-            script = 'tell app "Finder" to POSIX path of (choose file with prompt "{}" as string)'.format(prompt_text)
+            script = f'tell app "Finder" to POSIX path of (choose file with prompt "{prompt_text}" default location POSIX file "{LAST_BROWSED_DIR}")'
         result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-        return result.stdout.strip()
+        path = result.stdout.strip()
 
     elif FILE_PICKER == "tkinter":
         import tkinter as tk
@@ -73,17 +76,21 @@ def _native_browse(prompt_text, is_dir=False):
             root.tk.call("set", "::tk::dialog::file::showHiddenVar", "0")
         except Exception:
             pass
-        path = filedialog.askdirectory(title=prompt_text) if is_dir else filedialog.askopenfilename(title=prompt_text)
+        path = filedialog.askdirectory(initialdir=LAST_BROWSED_DIR, title=prompt_text) if is_dir else filedialog.askopenfilename(initialdir=LAST_BROWSED_DIR, title=prompt_text)
         root.destroy()
-        return path or ""
+        path = path or ""
 
-    return ""
+    if path and os.path.exists(path):
+        LAST_BROWSED_DIR = os.path.dirname(path) if os.path.isfile(path) else path
+
+    return path
 
 # --- Configuration ---
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(ROOT_DIR, "templates", "out_of_the_box")
 STAGING_DIR = os.path.join(ROOT_DIR, "_build_stage_")
 TESTLAB_DIR = os.path.join(TEMPLATE_DIR, "statics", "testlab")
+PROFILES_FILE = os.path.join(ROOT_DIR, ".builder_profiles.json")
 
 def print_banner():
     print(CYAN + "=" * 60)
@@ -203,12 +210,16 @@ def copy_testcases_to_engine(src_folder, dest_root_folder, mode):
                 else:
                     shutil.copy2(src_item, os.path.join(in_dir, f))
 
-def get_path_input(prompt_text, is_dir=False, allow_blank=False):
+def get_path_input(prompt_text, is_dir=False, allow_blank=False, default_val=""):
     while True:
         browse_hint = " (type 'b' to browse)" if FILE_PICKER else ""
-        blank_hint = " (leave blank to skip)" if allow_blank else ""
-        user_input = input(CYAN + f"{prompt_text}{blank_hint}{browse_hint}: " + RESET).strip()
+        blank_hint = " (leave blank to skip)" if allow_blank and not default_val else ""
+        default_hint = f" [{default_val}]" if default_val else ""
+        user_input = input(CYAN + f"{prompt_text}{default_hint}{blank_hint}{browse_hint}: " + RESET).strip()
         
+        if not user_input and default_val:
+            return default_val
+            
         if allow_blank and user_input == "":
             return ""
             
@@ -232,26 +243,75 @@ def main():
     print_banner()
 
     # --- 1. Gather Metadata ---
-    course_id = input(CYAN + "Enter Course ID (e.g., CS1234): " + RESET).strip().upper()
-    lab_name = input(CYAN + "Enter Lab Name (e.g., L8): " + RESET).strip().upper()
-    server_ip = input(CYAN + "Enter Lab Server IP (e.g., 10.21.225.10): " + RESET).strip()
-    subnet = input(CYAN + "Enter Allowed Subnet (e.g., 10.21.225.): " + RESET).strip()
-    date_str = input(CYAN + "Enter Date (YYYY-MM-DD): " + RESET).strip()
-    start_time = input(CYAN + "Enter Start Time (2400 format, e.g., 1400): " + RESET).strip()
-    duration_mins = int(input(CYAN + "Enter Standard Duration in minutes (e.g., 120): " + RESET).strip())
-    pwd_extra = int(input(CYAN + "Enter PWD Extra Time in minutes (e.g., 30): " + RESET).strip())
+    course_id = input(CYAN + "Enter Course ID [DUMMY101]: " + RESET).strip().upper() or "DUMMY101"
+    
+    # Load profile for course
+    profiles = {}
+    if os.path.exists(PROFILES_FILE):
+        try:
+            with open(PROFILES_FILE, "r") as f:
+                profiles = json.load(f)
+        except Exception:
+            pass
+            
+    profile = profiles.get(course_id, {})
+    if profile:
+        print(GREEN + f"[*] Found saved profile for {course_id}. Press Enter to use saved defaults." + RESET)
+
+    def_lab = profile.get("lab_name", "L1")
+    lab_name = input(CYAN + f"Enter Lab Name [{def_lab}]: " + RESET).strip().upper() or def_lab
+    
+    def_ip = profile.get("server_ip", "127.0.0.1")
+    server_ip = input(CYAN + f"Enter Lab Server IP [{def_ip}]: " + RESET).strip() or def_ip
+    
+    def_sub = profile.get("subnet", "127.0.0.")
+    subnet = input(CYAN + f"Enter Allowed Subnet [{def_sub}]: " + RESET).strip() or def_sub
+    
+    default_date = datetime.now().strftime("%Y-%m-%d")
+    date_str = input(CYAN + f"Enter Date (YYYY-MM-DD) [{default_date}]: " + RESET).strip() or default_date
+    
+    def_time = profile.get("start_time", "1400")
+    start_time = input(CYAN + f"Enter Start Time (2400 format) [{def_time}]: " + RESET).strip() or def_time
+    
+    def_dur = profile.get("duration_mins", "120")
+    duration_mins = int(input(CYAN + f"Enter Standard Duration in minutes [{def_dur}]: " + RESET).strip() or def_dur)
+    
+    def_pwd = profile.get("pwd_extra", "30")
+    pwd_extra = int(input(CYAN + f"Enter PWD Extra Time in minutes [{def_pwd}]: " + RESET).strip() or def_pwd)
     
     start_dt = datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H%M")
     end_dt = start_dt + timedelta(minutes=duration_mins)
 
     print()
-    students_path = get_path_input("Path to students.txt", is_dir=False, allow_blank=False)
-    pwd_path = get_path_input("Path to pwd_students.txt", is_dir=False, allow_blank=True)
+    def_students = profile.get("students_path", "")
+    students_path = get_path_input("Path to students.txt", is_dir=False, allow_blank=False, default_val=def_students)
     
-    # Global Problem Statement
-    global_prob_stmt = get_path_input("Path to global problem statement PDF/MD/TXT", is_dir=False, allow_blank=True)
+    def_pwd_path = profile.get("pwd_path", "")
+    pwd_path = get_path_input("Path to pwd_students.txt", is_dir=False, allow_blank=True, default_val=def_pwd_path)
+    
+    def_stmt = profile.get("global_prob_stmt", "")
+    global_prob_stmt = get_path_input("Path to global problem statement PDF/MD/TXT", is_dir=False, allow_blank=True, default_val=def_stmt)
 
-    num_q = int(input(CYAN + "\nNumber of Questions: " + RESET).strip())
+    num_q = int(input(CYAN + "\nNumber of Questions [1]: " + RESET).strip() or "1")
+    
+    # Update and save profile
+    profile.update({
+        "lab_name": lab_name,
+        "server_ip": server_ip,
+        "subnet": subnet,
+        "start_time": start_time,
+        "duration_mins": str(duration_mins),
+        "pwd_extra": str(pwd_extra),
+        "students_path": students_path,
+        "pwd_path": pwd_path,
+        "global_prob_stmt": global_prob_stmt
+    })
+    profiles[course_id] = profile
+    try:
+        with open(PROFILES_FILE, "w") as f:
+            json.dump(profiles, f, indent=4)
+    except Exception as e:
+        print(YELLOW + f"[-] Warning: Could not save profile: {e}" + RESET)
 
     questions_config = {}
     for i in range(1, num_q + 1):
