@@ -536,5 +536,11 @@ async def get_task_status(task_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            cfg = json.load(f)
+            port = int(cfg.get("port", 8000))
+    except Exception:
+        port = 8000
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 

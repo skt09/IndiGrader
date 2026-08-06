@@ -13,7 +13,7 @@
 # ==============================================================================
 
 COURSE_ID="COURSE_NAME_HERE"
-DEFAULT_SERVER_URL="http://SERVER_IP_HERE:8000"
+DEFAULT_SERVER_URL="http://SERVER_IP_HERE:SERVER_PORT_HERE"
 
 echo -e "\033[1;36mSetting up IndiGrader for $COURSE_ID...\033[0m"
 

@@ -281,6 +281,9 @@ def main():
     
     def_ip = profile.get("server_ip", "127.0.0.1")
     server_ip = input(CYAN + f"Enter Lab Server IP [{def_ip}]: " + RESET).strip() or def_ip
+
+    def_port = str(profile.get("server_port", "8000"))
+    server_port = int(input(CYAN + f"Enter Lab Server Port [{def_port}]: " + RESET).strip() or def_port)
     
     def_sub = profile.get("subnet", "127.0.0.")
     subnet_str = input(CYAN + f"Enter Allowed Subnets (comma-separated) [{def_sub}]: " + RESET).strip() or def_sub
@@ -317,6 +320,7 @@ def main():
     profile.update({
         "lab_name": lab_name,
         "server_ip": server_ip,
+        "server_port": server_port,
         "subnet": subnet_str,
         "start_time": start_time,
         "duration_mins": str(duration_mins),
@@ -419,6 +423,10 @@ def main():
         config = json.load(f)
     
     config["lab_name"] = lab_name
+    config["course_id"] = course_id
+    config["queue_name"] = f"ig_{course_id}_{lab_name}"
+    config["server_ip"] = server_ip
+    config["port"] = server_port
     config["start_time"] = start_dt.isoformat()
     config["end_time"] = end_dt.isoformat()
     config["allowed_subnets"] = allowed_subnets
@@ -455,6 +463,7 @@ def main():
             setup_content = f.read()
         setup_content = setup_content.replace('COURSE_NAME_HERE', course_id)
         setup_content = setup_content.replace('SERVER_IP_HERE', server_ip)
+        setup_content = setup_content.replace('SERVER_PORT_HERE', str(server_port))
         with open(setup_sh_path, "w") as f:
             f.write(setup_content)
 

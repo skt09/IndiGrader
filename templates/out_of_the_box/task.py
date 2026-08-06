@@ -3,11 +3,13 @@ import time
 import glob
 import subprocess
 import re
+import json
 
 from celery import Celery
 
 # List of allowed file extensions
 ALLOWED_EXTENSIONS = [".c", ".cpp", ".py", ".awk", ".gz"]
+
 
 capp = Celery(
     'task',
@@ -15,12 +17,21 @@ capp = Celery(
     backend="redis://localhost:6379"
 )
 
+try:
+    if os.path.exists("config.json"):
+        with open("config.json", "r") as f:
+            _cfg = json.load(f)
+        _qname = _cfg.get("queue_name")
+        if _qname:
+            capp.conf.task_default_queue = _qname
+except Exception:
+    pass
+
 @capp.task(name="handle-sub")
 def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_late: bool = False):
     qno_upper = qno.upper()
     roll_upper = roll.upper()
-    
-    import json
+
     with open("config.json", "r") as f:
         config_data = json.load(f)
     

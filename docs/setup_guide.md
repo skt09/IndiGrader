@@ -95,9 +95,10 @@ Run the script from the root of the IndiGrader repository:
 python3 builder.py
 ```
 The script will prompt for:
-- Course ID, Lab Name, Server IP configurations
-- Allowed Subnet: Provide a prefix matching the lab's local network (e.g., `10.21.225.` or `192.168.1.`) to restrict student access.
-- Start Date/Time and Durations
+- Course ID and Lab Name
+- Lab Server IP and Lab Server Port (default: 8000)
+- Allowed Subnet(s) (prefix matching the lab's local network, e.g., `10.21.225.` or `192.168.1.`)
+- Date, Start Date/Time, and Durations
 - Testcase paths and memory/timeout limits for each individual question.
 
 > [!TIP]
@@ -116,7 +117,7 @@ Once `builder.py` completes, it generates a `packageIG_<LabName>.zip` archive an
 **The Generated Server Structure (`packageIG_L8/`)**:
 ```text
 packageIG_L8/
-├── config.json                 # Auto-generated lab configuration
+├── config.json                 # Auto-generated lab configuration (includes port & queue_name)
 ├── start.sh                    # Server boot script
 ├── stop.sh                     # Graceful shutdown script
 ├── students.txt                
@@ -143,10 +144,11 @@ chmod +x start.sh
 ```
 
 **What `start.sh` does:**
-1. Runs strict pre-flight checks to validate your `config.json` and ensure the student `statics/` `.zip` was correctly built.
-2. Starts the Redis broker.
-3. Starts the Celery grading workers in the background.
-4. Starts the FastAPI server to accept submissions.
+1. Runs strict pre-flight checks to validate `config.json`, verify starter `.zip` exists, and check that `celery` and `fastapi` are present in your active Python environment.
+2. Starts the Redis broker on port 6379 (if not already running).
+3. Starts Celery grading workers with 12 concurrency, bound to the lab's isolated queue (`ig_<course_id>_<lab_name>`).
+4. Starts the FastAPI server bound to the configured course port.
+5. Verifies both background processes stay alive after startup (displaying crash logs if startup fails).
 
 ## 6. Distributing the Lab to Students
 Your students can fetch the starter kit directly from the server.
@@ -158,9 +160,10 @@ Because performance is critical during peak lab hours, FastAPI loads `config.jso
 
 If you need to change the lab time, duration, or memory limits on the fly while the lab is running:
 1. Edit the `config.json` file directly on the server (e.g., `nano config.json`).
-2. Restart **just** the FastAPI server using this simple one-liner to force it to reload the file into RAM without disrupting the Celery grading queue:
+2. Restart **just** this lab's FastAPI server using its specific port:
    ```bash
-   pkill -f "fastapi run main.py" && fastapi run main.py > logs/fastapi.log 2>&1 &
+   PORT=$(jq -r '.port // 8000' config.json)
+   pkill -f "port $PORT" && fastapi run main.py --port "$PORT" > logs/fastapi.log 2>&1 &
    ```
 *(Note: Clients that have previously downloaded the starter kit will retain the prior deadline locally, but the server maintains the authoritative state and will evaluate late submissions according to the updated configuration).*
 
@@ -172,9 +175,9 @@ Instead, execute the shutdown script:
 ./stop.sh
 ```
 **Functionality of `stop.sh`:**
-1. Terminates the FastAPI application to prevent new submissions.
-2. Continually monitors the Redis queue (displaying the remaining length on your terminal).
-3. Waits until the queue hits `0` (meaning all students have been graded).
-4. Safely sends a `SIGTERM` to the Celery workers to let them wrap up.
+1. Terminates **only** this lab's FastAPI application (via `logs/fastapi.pid` or port) to prevent new submissions.
+2. Continually monitors this lab's isolated Redis queue (`ig_<course_id>_<lab_name>`), displaying remaining length on your terminal.
+3. Waits until the queue hits `0` (meaning all students for this lab have been graded).
+4. Safely sends a `SIGTERM` to this lab's Celery worker (`logs/celery.pid`), leaving other running course labs untouched.
 
 Once `stop.sh` says "Shutdown Complete!", it is safe to zip the folder and take it back to your local machine for post-lab processing (detailed in `post_lab_guide.md`).

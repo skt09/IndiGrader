@@ -1,6 +1,10 @@
 {
     "_comment": "This is a dummy template config. Do not edit this manually. Run builder.py to generate your actual lab package.",
     "lab_name": "<DUMMY_LAB_NAME>",
+    "course_id": "<DUMMY_COURSE_ID>",
+    "queue_name": "ig_<DUMMY_COURSE_ID>_<DUMMY_LAB_NAME>",
+    "server_ip": "127.0.0.1",
+    "port": 8000,
     "start_time": "<DUMMY_START_TIME>",
     "end_time": "<DUMMY_END_TIME>",
     "allowed_subnets": [

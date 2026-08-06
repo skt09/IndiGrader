@@ -18,8 +18,8 @@ To mitigate impersonation, the server implements an IP-binding middleware.
 
 ### 3. Asynchronous Grading Pipeline (Celery + Redis)
 To manage high concurrency during lab sessions:
-- Submissions are enqueued to a Redis message broker.
-- A Celery worker pool (`task.py`) processes these tasks asynchronously.
+- Submissions are enqueued to a Redis message broker using an isolated queue per lab package (`ig_<course_id>_<lab_name>`).
+- A Celery worker pool (`task.py`) bound to that queue processes tasks asynchronously.
 - The worker executes the grading engine within a Firejail sandbox.
 - Results are written to the local file system, while the client periodically polls the server for task completion.
 

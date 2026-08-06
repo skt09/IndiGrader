@@ -43,6 +43,7 @@ IndiGrader's architecture is guided by the following principles:
 - **Path Isolation:** Submission histories are indexed numerically, avoiding direct file path transmission and preventing path-traversal vulnerabilities.
 
 ### System Administration
+- **Multi-Instance Support:** Allows running multiple course servers concurrently on a single machine by assigning distinct ports and isolated Redis task queues per lab package.
 - **Global Resource Injection:** Administrators can configure shared static resources (e.g., header files, databases) that are automatically mounted into all evaluation sandboxes.
 - **Data Packaging:** Submissions involving multiple files or directories are compressed automatically for transmission.
 - **Static Leaderboard:** Generates an offline, static HTML leaderboard reflecting the current grading state without requiring a secondary web framework.

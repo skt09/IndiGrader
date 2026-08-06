@@ -9,17 +9,17 @@ Prior to the first lab session, the student executes the setup script provided b
 ```bash
 curl -s <SERVER_URL>/clients/setup.sh | bash
 ```
-*(Replace `<SERVER_URL>` with the actual address, e.g., `http://10.21.225.10:8000`)*
+*(Replace `<SERVER_URL>` with the actual address and port, e.g., `http://10.21.225.10:8005`)*
 
 This script installs the `ig` command-line interface (CLI) and configures the environment with a course-specific alias (e.g., `CS101`) mapped to the designated server URL.
 
 ### Changing the Server URL
-If the server IP changes for a subsequent lab, you can update it without reinstalling the tool by using the `set-server` command:
+If the server IP or port changes for a subsequent lab, you can update it without reinstalling the tool by using the `set-server` command:
 
 ```bash
 ig set-server <COURSE_ID> <NEW_SERVER_URL>
 ```
-*Example: `ig set-server CS101 http://10.21.225.15:8000`*
+*Example: `ig set-server CS101 http://10.21.225.15:8005`*
 
 ## 2. Initiating a Lab Session
 
