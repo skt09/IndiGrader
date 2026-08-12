@@ -77,8 +77,8 @@ if [ "$MAKEFILE_MODE" == "true" ]; then
     fi
     cd "$BUILD_DIR" || exit 1
     if ! make > "compile_log.txt" 2>&1; then
-        echo "[LOG] Compilation failed:"
-        cat "compile_log.txt" | while read -r line; do echo "[LOG] $line"; done
+        echo "[COMPILE_LOG] Compilation failed:"
+        cat "compile_log.txt" | while read -r line; do echo "[COMPILE_LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
         exit 1
     fi
@@ -88,8 +88,8 @@ elif [[ "$EXT" == ".c" ]]; then
     EXECUTABLE="${BUILD_DIR}/exec"
     echo "[LOG] Compiling C source..."
     if ! gcc $CFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${BUILD_DIR}/compile_err.txt"; then
-        echo "[LOG] Compilation failed:"
-        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
+        echo "[COMPILE_LOG] Compilation failed:"
+        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[COMPILE_LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
         exit 1
     fi
@@ -97,8 +97,8 @@ elif [[ "$EXT" == ".cpp" ]]; then
     EXECUTABLE="${BUILD_DIR}/exec"
     echo "[LOG] Compiling C++ source..."
     if ! g++ $CXXFLAGS "$SUBMISSION" $LDFLAGS -o "$EXECUTABLE" 2> "${BUILD_DIR}/compile_err.txt"; then
-        echo "[LOG] Compilation failed:"
-        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[LOG] $line"; done
+        echo "[COMPILE_LOG] Compilation failed:"
+        cat "${BUILD_DIR}/compile_err.txt" | while read -r line; do echo "[COMPILE_LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
         exit 1
     fi

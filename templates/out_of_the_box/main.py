@@ -451,6 +451,9 @@ async def handleSubmit(
 
     client_ip = request.client.host # type: ignore
     qno_upper = qno.upper()
+    if "questions" in lab_config and qno_upper not in lab_config["questions"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid question '{qno_upper}'. Allowed questions are: {', '.join(lab_config['questions'])}")
+
     roll_upper = roll.upper()
 
     registered_ip = ip_roll_map.get(roll_upper)

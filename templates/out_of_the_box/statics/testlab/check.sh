@@ -100,7 +100,7 @@ grade_student() {
                 verdict="${test_info#*: }"
                 
                 if [[ "$test_name" == "ALL" && "$verdict" == "COMPILATION_ERROR"* ]]; then
-                    echo -e "   ${RED}[$roll_number] Compilation failed for $question.${NC}"
+                    echo -e "   ${RED}[$roll_number] Compilation failed for $question. Please run manually using gcc/g++/... to debug.${NC}"
                 elif [[ "$verdict" == PASSED* ]]; then
                     echo -e "${GREEN}  ${test_name}: PASSED${NC}"
                 elif [[ "$verdict" == TIMEOUT* ]]; then
