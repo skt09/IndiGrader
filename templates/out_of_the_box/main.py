@@ -474,6 +474,7 @@ async def handleSubmit(
     file_content = await file.read()
     
     current_time = datetime.now()
+    submission_timestamp = current_time.strftime("%Y%m%d-%H%M%S")
     is_late = False
     is_privileged = roll_upper in pwd_rolls
     if not DEBUG and current_time > lab_config["end_time"] and not is_privileged:
@@ -484,7 +485,7 @@ async def handleSubmit(
         
         is_late = True
 
-    work = handle_submission.delay(qno_upper, roll_upper, file.filename, file_content, is_late)
+    work = handle_submission.delay(qno_upper, roll_upper, file.filename, file_content, is_late, submission_timestamp)
 
     return JSONResponse(
         {

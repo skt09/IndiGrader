@@ -16,7 +16,7 @@ capp = Celery(
 )
 
 @capp.task(name="handle-sub")
-def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_late: bool = False):
+def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_late: bool = False, submission_timestamp: str = None):
     qno_upper = qno.upper()
     roll_upper = roll.upper()
     
@@ -34,7 +34,7 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
     std_dir = os.path.join(q_dir, roll_upper)
     os.makedirs(std_dir, exist_ok=True) 
 
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    timestamp = submission_timestamp if submission_timestamp else time.strftime("%Y%m%d-%H%M%S")
     base, ext = os.path.splitext(filename)
     ext = ext.lower()
 
