@@ -383,6 +383,10 @@ def main():
     def_stmt = profile.get("global_prob_stmt", "")
     global_prob_stmt = get_path_input("Path to global problem statement PDF/MD/TXT", is_dir=False, allow_blank=True, default_val=def_stmt)
 
+    def_include = profile.get("include_check_grade", "y")
+    include_check_grade_str = input(CYAN + f"\nInclude check.sh and grade.sh in the starterkit? (Y/n) [{def_include.upper()}]: " + RESET).strip().lower() or def_include
+    include_check_grade = include_check_grade_str != 'n'
+
     num_q = int(input(CYAN + "\nNumber of Questions [1]: " + RESET).strip() or "1")
     
     # Update and save profile
@@ -395,7 +399,8 @@ def main():
         "pwd_extra": str(pwd_extra),
         "students_path": students_path,
         "pwd_path": pwd_path,
-        "global_prob_stmt": global_prob_stmt
+        "global_prob_stmt": global_prob_stmt,
+        "include_check_grade": "y" if include_check_grade else "n"
     })
     profiles[course_id] = profile
     try:
@@ -535,7 +540,11 @@ def main():
     os.makedirs(statics_lab_dir, exist_ok=True)
     
     # 6a. Copy vital scripts from testlab template to new statics folder
-    for script in ["check.sh", "submit.sh", "grade.sh"]:
+    scripts_to_copy = ["submit.sh"]
+    if include_check_grade:
+        scripts_to_copy.extend(["check.sh", "grade.sh"])
+        
+    for script in scripts_to_copy:
         src_script = os.path.join(TESTLAB_DIR, script)
         if os.path.exists(src_script):
             copy_and_lf(src_script, os.path.join(statics_lab_dir, script))
