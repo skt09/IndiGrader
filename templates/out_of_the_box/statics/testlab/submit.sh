@@ -58,7 +58,12 @@ if ! command -v tar &> /dev/null; then
 fi
 
 # Submit payload
-process_question() {
+# Global arrays to track submitted tasks
+declare -a SUBMITTED_QNOS
+declare -a SUBMITTED_TASK_IDS
+declare -a SUBMITTED_IS_LATE
+
+submit_question() {
     local Q_NO_NUM=$1
     local Q_NO="Q${Q_NO_NUM}"
     local ALLOWED_EXTS=("c" "cpp" "py" "awk")
@@ -97,11 +102,11 @@ process_question() {
         local CURRENT_SEC=$(date -u +%s)
         local END_SEC=$(date -u -d "$END_TIME" +%s 2>/dev/null)
         if [ -n "$END_SEC" ] && [ "$CURRENT_SEC" -gt "$END_SEC" ]; then
-            echo -e "${YELLOW}You are late. Only one late submission is allowed.${NC}"
+            echo -e "${YELLOW}You are late for ${Q_NO}. Only one late submission is allowed.${NC}"
             echo -e "${YELLOW}Marks won't be considered during grading.${NC}"
-            read -p "Do you really want to submit? (yes/no): " confirm
+            read -p "Do you really want to submit ${Q_NO}? (yes/no): " confirm
             if [ "$confirm" != "yes" ]; then
-                echo "Submission cancelled."
+                echo "Submission cancelled for ${Q_NO}."
                 return 1
             fi
             IS_LATE=true
@@ -123,20 +128,35 @@ process_question() {
     local TASK_ID=$(echo "$SUBMIT_RESPONSE" | jq -r '.taskid')
 
     if [ -z "$TASK_ID" ] || [ "$TASK_ID" == "null" ]; then
-        echo -e "${RED}Failed to submit. Server response:${NC}"
+        echo -e "${RED}Failed to submit ${Q_NO}. Server response:${NC}"
         echo "$SUBMIT_RESPONSE" | jq '.'
         return 1
     fi
 
-    echo -e "${GREEN}Submission successful! Task ID: ${TASK_ID}${NC}\n"
+    echo -e "${GREEN}Submission successful for ${Q_NO}! Task ID: ${TASK_ID}${NC}"
 
     if [ "$IS_LATE" = true ]; then
         echo -e "${GREEN}Late submission is saved.${NC}"
+    fi
+
+    SUBMITTED_QNOS+=("$Q_NO_NUM")
+    SUBMITTED_TASK_IDS+=("$TASK_ID")
+    SUBMITTED_IS_LATE+=("$IS_LATE")
+}
+
+poll_and_report_question() {
+    local Q_NO_NUM=$1
+    local TASK_ID=$2
+    local IS_LATE=$3
+    local Q_NO="Q${Q_NO_NUM}"
+
+    if [ "$IS_LATE" = true ]; then
         return 0
     fi
 
     # Poll
     local STATUS_RESPONSE
+    echo -e "\n${YELLOW}Waiting for evaluation of ${Q_NO}...${NC}"
     while true; do
         STATUS_RESPONSE=$(curl -s "${SERVER_URL}/task-status/${TASK_ID}")
         local TASK_STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status')
@@ -209,14 +229,28 @@ process_question() {
 
 # --- Main Execution Logic ---
 if [ "$#" -eq 0 ]; then
-    echo -e "${BLUE}Processing all ${TOTAL_QUESTIONS} questions for Roll: ${ROLL_NO}${NC}"
+    echo -e "${BLUE}Submitting all ${TOTAL_QUESTIONS} questions for Roll: ${ROLL_NO}${NC}"
     for (( i=1; i<=TOTAL_QUESTIONS; i++ )); do
-        echo -e "\n${YELLOW}==================== Starting Question ${i} ====================${NC}"
-        process_question "$i"
-        echo -e "${YELLOW}==================== Finished Question ${i} ====================${NC}"
+        echo -e "\n${YELLOW}--- Submitting Question ${i} ---${NC}"
+        submit_question "$i"
     done
+    
+    if [ ${#SUBMITTED_QNOS[@]} -gt 0 ]; then
+        echo -e "\n${BLUE}========================================================================${NC}"
+        echo -e "${BLUE}All submissions accepted. Now waiting for server evaluation...${NC}"
+        echo -e "${BLUE}========================================================================${NC}"
+        for (( i=0; i<${#SUBMITTED_QNOS[@]}; i++ )); do
+            echo -e "\n${YELLOW}==================== Results for Question ${SUBMITTED_QNOS[$i]} ====================${NC}"
+            poll_and_report_question "${SUBMITTED_QNOS[$i]}" "${SUBMITTED_TASK_IDS[$i]}" "${SUBMITTED_IS_LATE[$i]}"
+        done
+    fi
 elif [ "$#" -eq 1 ]; then
-    process_question "$1"
+    echo -e "\n${YELLOW}--- Submitting Question $1 ---${NC}"
+    submit_question "$1"
+    if [ ${#SUBMITTED_QNOS[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}==================== Results for Question $1 ====================${NC}"
+        poll_and_report_question "${SUBMITTED_QNOS[0]}" "${SUBMITTED_TASK_IDS[0]}" "${SUBMITTED_IS_LATE[0]}"
+    fi
 else
     echo -e "${YELLOW}Usage: $0 [question_number]${NC}"
     echo "Example: $0 2"
