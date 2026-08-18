@@ -154,6 +154,17 @@
             <p class="subtitle">Live Unified Rankings</p>
         </header>
 
+        <details id="stats-panel" class="glass-panel" style="display: none; margin-bottom: 2rem; padding: 1.5rem;">
+            <summary style="cursor: pointer; color: var(--text-main); font-weight: 600; font-size: 1.2rem; user-select: none; outline: none; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                View Question Statistics
+            </summary>
+            <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                <div id="stats-container" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                </div>
+            </div>
+        </details>
+
         <div class="glass-panel">
             <div id="loading" class="loading">Aggregating submission data...</div>
             <table id="leaderboard-table" style="display: none;">
@@ -184,6 +195,42 @@
                     Object.keys(student.scores).forEach(q => allQuestions.add(q));
                 });
                 const sortedQuestions = Array.from(allQuestions).sort();
+
+                // Compute and render statistics
+                const stats = {};
+                sortedQuestions.forEach(q => {
+                    stats[q] = { sum: 0, count: 0 };
+                });
+                
+                data.forEach(student => {
+                    Object.keys(student.scores).forEach(q => {
+                        stats[q].sum += student.scores[q];
+                        stats[q].count += 1;
+                    });
+                });
+
+                if (sortedQuestions.length > 0) {
+                    const statsContainer = document.getElementById('stats-container');
+                    let statsHTML = '';
+                    sortedQuestions.forEach(q => {
+                        const avg = stats[q].count > 0 ? (stats[q].sum / stats[q].count) : 0;
+                        statsHTML += `
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; flex: 1; min-width: 150px; border: 1px solid rgba(255,255,255,0.05);">
+                                <h4 style="color: #38bdf8; margin-bottom: 0.5rem; font-size: 1.1rem;">${q}</h4>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                    <span style="color: var(--text-muted);">Submissions:</span>
+                                    <span style="font-weight: 600;">${stats[q].count}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: var(--text-muted);">Avg Score:</span>
+                                    <span style="font-weight: 600;">${avg.toFixed(1)}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    statsContainer.innerHTML = statsHTML;
+                    document.getElementById('stats-panel').style.display = 'block';
+                }
 
                 const thead = document.getElementById('table-head');
                 let headerHTML = '<tr><th>Rank</th><th>Roll Number</th>';
