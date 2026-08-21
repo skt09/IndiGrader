@@ -22,6 +22,7 @@ PWD_STUDENTS_FILE = "pwd_students.txt"
 CONFIG_FILE = "config.json"
 lab_config = {}
 pwd_rolls = set()
+ALLOWED_EXTENSIONS = [".c", ".cpp", ".py", ".awk", ".gz"]
 
 student_list = set()
 # fast lookups: { "ROLL_NO": "ip_address" }
@@ -485,7 +486,26 @@ async def handleSubmit(
         
         is_late = True
 
-    work = handle_submission.delay(qno_upper, roll_upper, file.filename, file_content, is_late, submission_timestamp)
+    base, ext = os.path.splitext(file.filename)
+    ext = ext.lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported file type: {ext}")
+
+    base_dir = "late_submissions" if is_late else "submissions"
+    std_dir = os.path.join(base_dir, qno_upper, roll_upper)
+    os.makedirs(std_dir, exist_ok=True)
+    
+    save_filename = f"{base}_{submission_timestamp}{ext}"
+    save_file = os.path.join(std_dir, save_filename)
+    
+    try:
+        with open(save_file, "wb") as f:
+            f.write(file_content)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save file to disk.")
+
+    work = handle_submission.delay(qno_upper, roll_upper, save_file, is_late, submission_timestamp)
 
     return JSONResponse(
         {

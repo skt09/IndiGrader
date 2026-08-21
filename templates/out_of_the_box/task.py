@@ -16,7 +16,7 @@ capp = Celery(
 )
 
 @capp.task(name="handle-sub")
-def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_late: bool = False, submission_timestamp: str = None):
+def handle_submission(qno: str, roll: str, save_file: str, is_late: bool = False, submission_timestamp: str = None):
     qno_upper = qno.upper()
     roll_upper = roll.upper()
     
@@ -32,32 +32,21 @@ def handle_submission(qno: str, roll: str, filename: str, content: bytes, is_lat
     base_dir = "late_submissions" if is_late else "submissions"
     q_dir = os.path.join(base_dir, qno_upper)
     std_dir = os.path.join(q_dir, roll_upper)
-    os.makedirs(std_dir, exist_ok=True) 
 
     timestamp = submission_timestamp if submission_timestamp else time.strftime("%Y%m%d-%H%M%S")
-    base, ext = os.path.splitext(filename)
+    base, ext = os.path.splitext(save_file)
     ext = ext.lower()
 
-    # Validate extension
-    if ext not in ALLOWED_EXTENSIONS:
-        logs.append(f"ERROR: Unsupported file extension: {ext}\n")
-        log_path = os.path.join(std_dir, f"result_{timestamp}.txt")
-        with open(log_path, "w") as log_file: log_file.writelines(logs)
-        return {"status": "Setup Error", "message": f"Unsupported file type: {ext}"}
-    save_filename = f"{base}_{timestamp}{ext}"
-    save_file = os.path.join(std_dir, save_filename)
-    executable_path = os.path.join(std_dir, f"submission_{timestamp}.out")
     log_path = os.path.join(std_dir, f"result_{timestamp}.txt")
     marks_log = os.path.join(std_dir, "marks.txt")
 
-    # Save source file
-    try:
-        with open(save_file, "wb") as f: f.write(content)
-        logs.append(f"SUCCESS: Source file saved to {save_file}\n")
-    except Exception as e:
-        logs.append(f"ERROR: Failed to save source file. Reason: {e}\n")
+    if not os.path.exists(save_file):
+        logs.append(f"ERROR: Source file not found at {save_file}\n")
+        os.makedirs(std_dir, exist_ok=True)
         with open(log_path, "w") as log_file: log_file.writelines(logs)
-        return {"status": "Setup Error", "message": "Could not save file."}
+        return {"status": "Setup Error", "message": "Source file missing."}
+
+    logs.append(f"SUCCESS: Source file located at {save_file}\n")
     
     # Handle Archives for Makefile projects
     submission_path = save_file
