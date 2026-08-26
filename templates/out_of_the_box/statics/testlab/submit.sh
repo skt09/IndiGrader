@@ -100,7 +100,8 @@ submit_question() {
     local IS_LATE=false
     if [ -n "$END_TIME" ] && [ "$END_TIME" != "null" ]; then
         local CURRENT_SEC=$(date -u +%s)
-        local END_SEC=$(date -u -d "$END_TIME" +%s 2>/dev/null)
+        # Linux (GNU date) vs macOS (BSD date) interoperability
+        local END_SEC=$(date -u -d "$END_TIME" +%s 2>/dev/null || date -j -u -f "%Y-%m-%dT%H:%M:%S" "$END_TIME" +%s 2>/dev/null)
         if [ -n "$END_SEC" ] && [ "$CURRENT_SEC" -gt "$END_SEC" ]; then
             echo -e "${YELLOW}You are late for ${Q_NO}. Only one late submission is allowed.${NC}"
             echo -e "${YELLOW}Marks won't be considered during grading.${NC}"

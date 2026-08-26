@@ -16,6 +16,20 @@ CXXFLAGS="-Wall"
 LDFLAGS="-lm -lpthread"
 DIFF_FLAGS="-i -w -B"
 
+# Interoperable timeout wrapper for macOS/Linux
+run_with_timeout() {
+    local t=$1
+    shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${t}s" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "${t}s" "$@"
+    else
+        # macOS perl-based timeout
+        perl -e 'eval { local $SIG{ALRM} = sub { die "alarm\n" }; alarm shift; system(@ARGV); alarm 0; }; if ($@ eq "alarm\n") { exit 124; } exit $? >> 8;' "$t" "$@"
+    fi
+}
+
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -184,11 +198,12 @@ run_standard() {
     cd "$sandbox_dir" || exit 1
     # Enforce memory limit and measure time
     (
-        ulimit -v "$((MEM_CAP_MB * 1024))"
-        if [ -x /usr/bin/time ]; then
-            /usr/bin/time -f "%e" -o "time.txt" timeout "${TIMEOUT_SEC}s" "${CMD[@]}" "${EXTRA_ARGS[@]}" < "$stdin_file" > "stdout.txt" 2> "stderr.txt"
+        ulimit -v "$((MEM_CAP_MB * 1024))" 2>/dev/null || true
+        # GNU time supports -f, macOS BSD time doesn't.
+        if command -v /usr/bin/time >/dev/null 2>&1 && /usr/bin/time -f "%e" -o /dev/null true 2>/dev/null; then
+            /usr/bin/time -f "%e" -o "time.txt" run_with_timeout "$TIMEOUT_SEC" "${CMD[@]}" "${EXTRA_ARGS[@]}" < "$stdin_file" > "stdout.txt" 2> "stderr.txt"
         else
-            timeout "${TIMEOUT_SEC}s" "${CMD[@]}" "${EXTRA_ARGS[@]}" < "$stdin_file" > "stdout.txt" 2> "stderr.txt"
+            run_with_timeout "$TIMEOUT_SEC" "${CMD[@]}" "${EXTRA_ARGS[@]}" < "$stdin_file" > "stdout.txt" 2> "stderr.txt"
         fi
     )
     local exit_code=$?
