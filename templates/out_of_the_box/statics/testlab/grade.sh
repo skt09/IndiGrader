@@ -75,6 +75,9 @@ if [ "$MAKEFILE_MODE" == "true" ]; then
     if [ -d "${TESTCASES_DIR}/static" ]; then
         cp -rf "${TESTCASES_DIR}/static/"* "$BUILD_DIR/" 2>/dev/null
     fi
+    if [ -d "${TESTCASES_DIR}/${QUESTION}/static" ]; then
+        cp -rf "${TESTCASES_DIR}/${QUESTION}/static/"* "$BUILD_DIR/" 2>/dev/null
+    fi
     cd "$BUILD_DIR" || exit 1
     if ! make > "compile_log.txt" 2>&1; then
         echo "[LOG] Compilation failed:"
