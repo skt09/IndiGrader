@@ -19,6 +19,7 @@ import subprocess
 import sys
 import glob
 import platform
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -225,15 +226,26 @@ def find_config_file() -> Optional[Path]:
     return None
 
 
-def prompt_for_path(prompt: str, required_ext: Optional[str] = None) -> Path:
-    """Ask the user for an existing file path using the same file-input UX as builder.py."""
+def prompt_for_path(
+    prompt: str,
+    required_ext: Optional[str] = None,
+    is_dir: bool = False,
+) -> Path:
+    """Ask the user for an existing file or directory path."""
     while True:
-        raw_path = get_path_input(prompt, is_dir=False, allow_blank=False)
+        raw_path = get_path_input(prompt, is_dir=is_dir, allow_blank=False)
         path = Path(raw_path).expanduser().resolve()
 
         if not path.exists():
-            print(f"[-] File not found: {path}")
+            print(f"[-] Path not found: {path}")
             continue
+
+        if is_dir:
+            if not path.is_dir():
+                print(f"[-] This is not a directory: {path}")
+                continue
+            return path
+
         if not path.is_file():
             print(f"[-] This is not a file: {path}")
             continue
@@ -283,6 +295,33 @@ def normalize_ext(value: str) -> str:
     return value if value.startswith(".") else f".{value}"
 
 
+def get_makefile_target(project_dir: Path) -> Optional[str]:
+    """Read the first explicit target from a Makefile project."""
+    makefile_names = ("Makefile", "makefile", "GNUmakefile")
+    makefile_path = next(
+        (project_dir / name for name in makefile_names if (project_dir / name).is_file()),
+        None,
+    )
+    if makefile_path is None:
+        return None
+
+    target_pattern = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*:\s*(?![=])")
+    assignment_pattern = re.compile(
+        r"^\s*(?:TARGET\s*[:?+]?=|.*\s-o)\s*([A-Za-z0-9_.-]+)\b"
+    )
+    try:
+        for line in makefile_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            match = target_pattern.match(line)
+            if match and match.group(1) not in {"all", "clean"}:
+                return match.group(1)
+            match = assignment_pattern.match(line)
+            if match:
+                return match.group(1)
+    except OSError:
+        return None
+    return None
+
+
 def resolve_testcase_dirs(config_path: Path, lab_name: str) -> List[Path]:
     root_dir = config_path.parent
     dirs: List[Path] = []
@@ -313,6 +352,24 @@ def resolve_testcase_dirs(config_path: Path, lab_name: str) -> List[Path]:
 
 def ask_for_submission_file(question: str, config_data: Dict) -> Path:
     qcfg = config_data.get(question, {})
+
+    if qcfg.get("makefile", False):
+        print(
+            f"[*] {question} uses Makefile mode; select the complete project directory.")
+        project_dir = prompt_for_path(
+            f"Select Makefile project directory for {question}",
+            is_dir=True,
+        )
+        makefile_names = ("Makefile", "makefile", "GNUmakefile")
+        if not any((project_dir / name).is_file() for name in makefile_names):
+            print(
+                "[-] The selected directory does not contain Makefile, makefile, "
+                "or GNUmakefile. Please select the complete project directory."
+            )
+            return ask_for_submission_file(question, config_data)
+
+        return project_dir
+
     ext = normalize_ext(qcfg.get("ext", ""))
 
     if ext:
@@ -329,6 +386,27 @@ def run_grade_script(config_path: Path, question: str, submission: Path, testcas
     if not grader.exists():
         raise FileNotFoundError(f"grade.sh not found at {grader}")
 
+    run_config = config_path
+    temporary_config = None
+    question_config = load_config(config_path).get(question, {})
+    if question_config.get("makefile", False):
+        makefile_target = get_makefile_target(submission)
+        if makefile_target:
+            config_data = load_config(config_path)
+            config_data[question] = dict(config_data.get(question, {}))
+            config_data[question]["executable_name"] = makefile_target
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=config_path.parent,
+                prefix=".ig_verify_config_",
+                suffix=".json",
+                delete=False,
+            ) as config_file:
+                json.dump(config_data, config_file, indent=2)
+                temporary_config = Path(config_file.name)
+            run_config = temporary_config
+
     cmd = [
         "bash",
         str(grader),
@@ -339,11 +417,14 @@ def run_grade_script(config_path: Path, question: str, submission: Path, testcas
         "--testcases_dir",
         str(testcase_dir),
         "--config",
-        str(config_path),
-        "--sandbox"
+        str(run_config),
     ]
 
-    return subprocess.run(cmd, cwd=str(config_path.parent), capture_output=True, text=True)
+    try:
+        return subprocess.run(cmd, cwd=str(config_path.parent), capture_output=True, text=True)
+    finally:
+        if temporary_config is not None:
+            temporary_config.unlink(missing_ok=True)
 
 
 def print_run_result(question: str, testcase_dir: Path, result: subprocess.CompletedProcess) -> bool:
