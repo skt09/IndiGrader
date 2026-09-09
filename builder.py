@@ -4,16 +4,15 @@ import sys
 import shutil
 import json
 from datetime import datetime, timedelta
+import subprocess
+import platform
+import glob
 
 CYAN = '\033[1;36m'
 GREEN = '\033[1;32m'
 RED = '\033[0;31m'
 YELLOW = '\033[1;33m'
 RESET = '\033[0m'
-
-import subprocess
-import platform
-import glob
 
 try:
     import readline
@@ -23,16 +22,11 @@ except ImportError:  # Windows without pyreadline3
 _IS_LIBEDIT = readline is not None and "libedit" in (getattr(readline, "__doc__", "") or "")
 
 def _rl_prompt(text):
-    """Wrap ANSI codes in readline's invisible-character markers so it can
-    compute the real prompt width (otherwise long lines wrap incorrectly).
-    libedit (macOS) doesn't use the \\001/\\002 convention and mangles the
-    escape codes if we send them, so it gets the plain colored prompt."""
     if readline is None or _IS_LIBEDIT:
         return CYAN + text + RESET
     return "\001" + CYAN + "\002" + text + "\001" + RESET + "\002"
 
 def expand_path(path):
-    """Expand ~, $VARS and surrounding quotes/escapes into a usable path."""
     path = path.strip()
     if len(path) >= 2 and path[0] == path[-1] and path[0] in ("'", '"'):
         path = path[1:-1]
@@ -41,10 +35,8 @@ def expand_path(path):
     return os.path.expanduser(os.path.expandvars(path))
 
 def _path_completer(text, state):
-    """Tab-completion over the filesystem, tilde-aware."""
     try:
         expanded = expand_path(text)
-        # A bare "~" or "~/" should list the home directory, not match nothing.
         matches = sorted(glob.glob(expanded + "*"))
         results = []
         for m in matches:
@@ -62,15 +54,11 @@ def _readline_enabled():
     return readline is not None and sys.stdin.isatty()
 
 def _with_path_completion(enable):
-    """Turn filesystem tab-completion on/off around a path prompt."""
     if readline is None or not _readline_enabled():
         return
     if enable:
-        # Empty delimiters => the whole line is one token, so paths containing
-        # spaces complete correctly.
         readline.set_completer_delims("")
         readline.set_completer(_path_completer)
-        # macOS ships libedit under the readline name; it needs a different bind.
         if _IS_LIBEDIT:
             readline.parse_and_bind("bind ^I rl_complete")
         else:
@@ -79,23 +67,21 @@ def _with_path_completion(enable):
         readline.set_completer(None)
 
 def _detect_file_picker():
-    """Returns the available native file picker backend, or None."""
     def _cmd_exists(cmd):
         try:
             subprocess.run([cmd, "--version"], capture_output=True, check=True)
             return True
         except (FileNotFoundError, subprocess.CalledProcessError):
             return False
-
     if platform.system() == "Darwin":
-        return "osascript"  # macOS — always available
+        return "osascript"
     if _cmd_exists("zenity"):
-        return "zenity"     # GNOME / Ubuntu
+        return "zenity"
     if _cmd_exists("kdialog"):
-        return "kdialog"    # KDE
+        return "kdialog"
     try:
         import tkinter  # noqa: F401
-        return "tkinter"    # Fallback: Python built-in
+        return "tkinter"
     except ImportError:
         pass
     return None
@@ -104,7 +90,6 @@ FILE_PICKER = _detect_file_picker()
 LAST_BROWSED_DIR = os.getcwd()
 
 def _native_browse(prompt_text, is_dir=False):
-    """Opens the OS-native file picker. Returns the selected path or empty string."""
     global LAST_BROWSED_DIR
     path = ""
     if FILE_PICKER == "zenity":
@@ -113,7 +98,6 @@ def _native_browse(prompt_text, is_dir=False):
             cmd.append("--directory")
         result = subprocess.run(cmd, capture_output=True, text=True)
         path = result.stdout.strip()
-
     elif FILE_PICKER == "kdialog":
         if is_dir:
             cmd = ["kdialog", "--getexistingdirectory", LAST_BROWSED_DIR, "--title", prompt_text]
@@ -121,7 +105,6 @@ def _native_browse(prompt_text, is_dir=False):
             cmd = ["kdialog", "--getopenfilename", LAST_BROWSED_DIR, "--title", prompt_text]
         result = subprocess.run(cmd, capture_output=True, text=True)
         path = result.stdout.strip()
-
     elif FILE_PICKER == "osascript":
         if is_dir:
             script = f'tell app "Finder" to POSIX path of (choose folder with prompt "{prompt_text}" default location POSIX file "{LAST_BROWSED_DIR}")'
@@ -129,7 +112,6 @@ def _native_browse(prompt_text, is_dir=False):
             script = f'tell app "Finder" to POSIX path of (choose file with prompt "{prompt_text}" default location POSIX file "{LAST_BROWSED_DIR}")'
         result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
         path = result.stdout.strip()
-
     elif FILE_PICKER == "tkinter":
         import tkinter as tk
         from tkinter import filedialog
@@ -146,137 +128,7 @@ def _native_browse(prompt_text, is_dir=False):
 
     if path and os.path.exists(path):
         LAST_BROWSED_DIR = os.path.dirname(path) if os.path.isfile(path) else path
-
     return path
-
-# --- Configuration ---
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_DIR = os.path.join(ROOT_DIR, "templates", "out_of_the_box")
-STAGING_DIR = os.path.join(ROOT_DIR, "_build_stage_")
-TESTLAB_DIR = os.path.join(TEMPLATE_DIR, "statics", "testlab")
-PROFILES_FILE = os.path.join(ROOT_DIR, ".builder_profiles.json")
-
-def print_banner():
-    print(CYAN + "=" * 60)
-    print("       WELCOME TO INDIGRADER LAB BUILDER (Pre-Lab)")
-    print("=" * 60)
-    print("Before we begin, ensure you have your testcases ready.")
-    print("See docs/setup_guide.md for naming conventions:")
-    print("https://github.com/skt09/IndiGrader/blob/main/docs/setup_guide.md")
-    print("=" * 60 + RESET)
-    resp = input(YELLOW + "Press [ENTER] to continue, or type 'q' to quit: " + RESET).strip().lower()
-    if resp in ['q', 'quit', 'exit']:
-        sys.exit(0)
-    print()
-
-def validate_testcases(tc_path, mode):
-    """
-    mode: 1 (Stdin: input##.txt), 2 (Args: args##.txt), 3 (Hybrid: input##/ dir)
-    """
-    if not os.path.exists(tc_path):
-        print(RED + f"[-] ERROR: Testcase path '{tc_path}' does not exist." + RESET)
-        return False
-    
-    # Check if they already provided input/ and output/ folders
-    has_input_dir = os.path.isdir(os.path.join(tc_path, "input")) or os.path.isdir(os.path.join(tc_path, "inputs"))
-    has_output_dir = os.path.isdir(os.path.join(tc_path, "output")) or os.path.isdir(os.path.join(tc_path, "outputs"))
-    
-    if has_input_dir and has_output_dir:
-        in_path = os.path.join(tc_path, "input") if os.path.isdir(os.path.join(tc_path, "input")) else os.path.join(tc_path, "inputs")
-        out_path = os.path.join(tc_path, "output") if os.path.isdir(os.path.join(tc_path, "output")) else os.path.join(tc_path, "outputs")
-        in_files_list = os.listdir(in_path)
-        out_files_list = os.listdir(out_path)
-    else:
-        in_path = tc_path
-        out_path = tc_path
-        files = os.listdir(tc_path)
-        in_files_list = files
-        out_files_list = files
-
-    if not in_files_list or not out_files_list:
-        print(RED + f"[-] ERROR: Testcase folder '{tc_path}' is empty or missing input/output files." + RESET)
-        return False
-
-    valid_count = 0
-    for f in out_files_list:
-        # Check Outputs
-        if f.startswith("output") and f.endswith(".txt"):
-            num = f[6:-4]
-            
-            if mode == 1: # Stdin
-                expected_in = f"input{num}.txt"
-                if expected_in not in in_files_list:
-                    print(f"[-] ERROR: Found '{f}' but missing '{expected_in}' in input.")
-                    return False
-            elif mode == 2: # Args
-                expected_in = f"args{num}.txt"
-                if expected_in not in in_files_list:
-                    print(f"[-] ERROR: Found '{f}' but missing '{expected_in}' in input.")
-                    return False
-            elif mode == 3: # Hybrid
-                expected_in = f"input{num}"
-                if expected_in not in in_files_list or not os.path.isdir(os.path.join(in_path, expected_in)):
-                    print(f"[-] ERROR: Found '{f}' but missing directory '{expected_in}/' in input.")
-                    return False
-                    
-            valid_count += 1
-
-    if valid_count == 0:
-        print(RED + f"[-] ERROR: No valid testcases found in '{tc_path}' for the selected mode." + RESET)
-        return False
-
-    return True
-
-def copy_and_lf(src, dst):
-    with open(src, 'r', encoding='utf-8', errors='ignore') as f:
-        content = f.read()
-    content = content.replace('\r\n', '\n')
-    with open(dst, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(content)
-    if os.access(src, os.X_OK):
-        os.chmod(dst, 0o755)
-
-def copy_testcases_to_engine(src_folder, dest_root_folder, mode):
-    """
-    Copies testcases from src_folder to dest_root_folder/input/ and dest_root_folder/output/
-    """
-    in_dir = os.path.join(dest_root_folder, "input")
-    out_dir = os.path.join(dest_root_folder, "output")
-    os.makedirs(in_dir, exist_ok=True)
-    os.makedirs(out_dir, exist_ok=True)
-    has_input_dir = os.path.isdir(os.path.join(src_folder, "input")) or os.path.isdir(os.path.join(src_folder, "inputs"))
-    has_output_dir = os.path.isdir(os.path.join(src_folder, "output")) or os.path.isdir(os.path.join(src_folder, "outputs"))
-    
-    if has_input_dir and has_output_dir:
-        src_in_dir = "input" if os.path.isdir(os.path.join(src_folder, "input")) else "inputs"
-        src_out_dir = "output" if os.path.isdir(os.path.join(src_folder, "output")) else "outputs"
-        
-        for f in os.listdir(os.path.join(src_folder, src_in_dir)):
-            src_item = os.path.join(src_folder, src_in_dir, f)
-            if os.path.isdir(src_item):
-                shutil.copytree(src_item, os.path.join(in_dir, f))
-            else:
-                shutil.copy2(src_item, os.path.join(in_dir, f))
-                
-        for f in os.listdir(os.path.join(src_folder, src_out_dir)):
-            src_item = os.path.join(src_folder, src_out_dir, f)
-            if os.path.isdir(src_item):
-                shutil.copytree(src_item, os.path.join(out_dir, f))
-            else:
-                shutil.copy2(src_item, os.path.join(out_dir, f))
-    else:
-        for f in os.listdir(src_folder):
-            src_item = os.path.join(src_folder, f)
-            if f.startswith("output"):
-                if os.path.isdir(src_item):
-                    shutil.copytree(src_item, os.path.join(out_dir, f))
-                else:
-                    shutil.copy2(src_item, os.path.join(out_dir, f))
-            elif f.startswith("input") or f.startswith("args"):
-                if os.path.isdir(src_item):
-                    shutil.copytree(src_item, os.path.join(in_dir, f))
-                else:
-                    shutil.copy2(src_item, os.path.join(in_dir, f))
 
 def get_path_input(prompt_text, is_dir=False, allow_blank=False, default_val=""):
     while True:
@@ -315,6 +167,34 @@ def get_path_input(prompt_text, is_dir=False, allow_blank=False, default_val="")
             else:
                 print(RED + f"[-] ERROR: Path '{path_to_check}' does not exist. Please try again." + RESET)
 
+def copy_and_lf(src, dst):
+    with open(src, 'r', encoding='utf-8', errors='ignore') as f:
+        content = f.read()
+    content = content.replace('\r\n', '\n')
+    with open(dst, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(content)
+    if os.access(src, os.X_OK):
+        os.chmod(dst, 0o755)
+
+# --- Configuration ---
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(ROOT_DIR, "templates", "out_of_the_box")
+STAGING_DIR = os.path.join(ROOT_DIR, "_build_stage_")
+TESTLAB_DIR = os.path.join(TEMPLATE_DIR, "statics", "testlab")
+PROFILES_FILE = os.path.join(ROOT_DIR, ".builder_profiles.json")
+
+def print_banner():
+    print(CYAN + "=" * 60)
+    print("       WELCOME TO INDIGRADER SUBMISSION-ONLY BUILDER")
+    print("=" * 60)
+    print("This builder sets up a distribution & submission mechanism")
+    print("without the automatic grader.")
+    print("=" * 60 + RESET)
+    resp = input(YELLOW + "Press [ENTER] to continue, or type 'q' to quit: " + RESET).strip().lower()
+    if resp in ['q', 'quit', 'exit']:
+        sys.exit(0)
+    print()
+
 def main():
     if not os.path.exists(TEMPLATE_DIR):
         print(RED + f"[-] ERROR: Template directory not found at {TEMPLATE_DIR}" + RESET)
@@ -325,7 +205,6 @@ def main():
     # --- 1. Gather Metadata ---
     course_id = input(CYAN + "Enter Course ID [DUMMY101]: " + RESET).strip().upper() or "DUMMY101"
     
-    # Load profile for course
     profiles = {}
     if os.path.exists(PROFILES_FILE):
         try:
@@ -379,15 +258,13 @@ def main():
     
     def_pwd_path = profile.get("pwd_path", "")
     pwd_path = get_path_input("Path to pwd_students.txt", is_dir=False, allow_blank=True, default_val=def_pwd_path)
-    
-    def_stmt = profile.get("global_prob_stmt", "")
-    global_prob_stmt = get_path_input("Path to global problem statement PDF/MD/TXT", is_dir=False, allow_blank=True, default_val=def_stmt)
 
-    def_include = profile.get("include_check_grade", "y")
-    include_check_grade_str = input(CYAN + f"\nInclude check.sh and grade.sh in the starterkit? (Y/n) [{def_include.upper()}]: " + RESET).strip().lower() or def_include
-    include_check_grade = include_check_grade_str != 'n'
-
-    num_q = int(input(CYAN + "\nNumber of Questions [1]: " + RESET).strip() or "1")
+    # Submission-Only Specific Inputs
+    print(CYAN + "\n--- Submission-Only Lab Artifacts ---" + RESET)
+    starter_folder = get_path_input("Path to starter folder (e.g., Lab-2/)", is_dir=True, allow_blank=False, default_val="")
+    lectures_folder = get_path_input("Path to lectures folder", is_dir=True, allow_blank=False, default_val="")
+    submissions_zip = get_path_input("Path to previous submissions zip", is_dir=False, allow_blank=False, default_val="")
+    set_up_script = get_path_input("Path to set-up-script", is_dir=False, allow_blank=False, default_val="")
     
     # Update and save profile
     profile.update({
@@ -399,8 +276,6 @@ def main():
         "pwd_extra": str(pwd_extra),
         "students_path": students_path,
         "pwd_path": pwd_path,
-        "global_prob_stmt": global_prob_stmt,
-        "include_check_grade": "y" if include_check_grade else "n"
     })
     profiles[course_id] = profile
     try:
@@ -409,73 +284,16 @@ def main():
     except Exception as e:
         print(YELLOW + f"[-] Warning: Could not save profile: {e}" + RESET)
 
-    questions_config = {}
-    for i in range(1, num_q + 1):
-        q_name = f"Q{i}"
-        print(CYAN + f"\n--- Configuring {q_name} ---" + RESET)
-        
-        full_marks = float(input(CYAN + f"Full Marks for {q_name} [100]: " + RESET).strip() or "100")
-        timeout = float(input(CYAN + f"Timeout (seconds) for {q_name} [5]: " + RESET).strip() or "5")
-        mem_cap = int(input(CYAN + f"Memory Cap (MB) for {q_name} [512]: " + RESET).strip() or "512")
-        
-        is_makefile = input(CYAN + f"Does {q_name} use a Makefile? (y/N): " + RESET).strip().lower() == 'y'
-        
-        target_name = q_name
-        if is_makefile:
-            target_name = input(CYAN + f"Enter the target/executable name built by the Makefile for {q_name} [{q_name}]: " + RESET).strip() or q_name
-        
-        print(CYAN + "Input Modes:")
-        print("  1. Stdin-Only (input##.txt)")
-        print("  2. Arg-Only (args##.txt)")
-        print("  3. Hybrid/Directory (input##/ directory containing args.txt, stdin.txt, files)" + RESET)
-        mode_str = input(CYAN + "Select mode (1/2/3) [1]: " + RESET).strip()
-        mode = int(mode_str) if mode_str in ['1', '2', '3'] else 1
-        
-        while True:
-            public_tc = get_path_input(f"Path to {q_name} PUBLIC testcases folder (Only for students!)", is_dir=True, allow_blank=False)
-            if validate_testcases(public_tc, mode):
-                break
-                
-        while True:
-            private_tc = get_path_input(f"Path to {q_name} PRIVATE testcases folder (Only for server!)", is_dir=True, allow_blank=False)
-            if validate_testcases(private_tc, mode):
-                break
-                
-        static_folder = get_path_input(f"Path to global 'static' files folder for {q_name}", is_dir=True, allow_blank=True)
-        starter_code = get_path_input(f"Path to starter code for {q_name} (File if normal, Folder if Makefile)", is_dir=is_makefile, allow_blank=True)
-
-        if not is_makefile and not starter_code:
-            ext = input(CYAN + f"No starter code provided. Expected file extension for {q_name} (e.g., c, cpp, py, sh, awk): " + RESET).strip().lstrip('.')
-            if not ext:
-                ext = 'c'
-        else:
-            ext = ''
-
-        questions_config[q_name] = {
-            "full_marks": full_marks,
-            "timeout": timeout,
-            "memory_cap_mb": mem_cap,
-            "public_tc": public_tc,
-            "private_tc": private_tc,
-            "static_folder": static_folder,
-            "starter": starter_code,
-            "is_makefile": is_makefile,
-            "target_name": target_name,
-            "mode": mode,
-            "ext": ext
-        }
-
     # --- 2. Setup Staging Area ---
     print(CYAN + "\n[*] Assembling lab environment in staging area..." + RESET)
     if os.path.exists(STAGING_DIR):
         shutil.rmtree(STAGING_DIR)
     shutil.copytree(TEMPLATE_DIR, STAGING_DIR)
 
-    # Clean out the template testcases and statics
-    shutil.rmtree(os.path.join(STAGING_DIR, "testcases"))
-    os.makedirs(os.path.join(STAGING_DIR, "testcases"))
+    # Clean out unused template testcases
+    shutil.rmtree(os.path.join(STAGING_DIR, "testcases"), ignore_errors=True)
     
-    # Copy admin tools, stop.sh, start.sh, and docs from root to staging area so they travel with the package
+    # Copy admin tools, stop.sh, start.sh, and docs from root to staging area
     admin_src = os.path.join(ROOT_DIR, ".admin")
     docs_src = os.path.join(ROOT_DIR, "docs")
     stop_src = os.path.join(ROOT_DIR, "stop.sh")
@@ -499,20 +317,16 @@ def main():
     config["start_time"] = start_dt.isoformat()
     config["end_time"] = end_dt.isoformat()
     config["allowed_subnets"] = allowed_subnets
-    config["questions"] = [f"Q{i}" for i in range(1, num_q + 1)]
+    config["questions"] = ["Q1"]  # Default generic question for submission
     
-    for i in range(1, num_q + 1):
-        q_name = f"Q{i}"
-        config[q_name] = {
-            "full_marks": questions_config[q_name]["full_marks"],
-            "timeout": questions_config[q_name]["timeout"],
-            "memory_cap_mb": questions_config[q_name]["memory_cap_mb"],
-            "evaluator": None,
-            "makefile": questions_config[q_name]["is_makefile"],
-            "ext": questions_config[q_name]["ext"]
-        }
-        if questions_config[q_name]["is_makefile"]:
-            config[q_name]["executable_name"] = questions_config[q_name]["target_name"]
+    config["Q1"] = {
+        "full_marks": 0,
+        "timeout": 5,
+        "memory_cap_mb": 512,
+        "evaluator": None,
+        "makefile": False,
+        "ext": "ipynb"
+    }
         
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -535,19 +349,14 @@ def main():
         with open(setup_sh_path, "w") as f:
             f.write(setup_content)
 
-    # --- 6. Assemble Statics & Testcases ---
+    # --- 6. Assemble Statics ---
     statics_lab_dir = os.path.join(STAGING_DIR, "statics", lab_name)
     os.makedirs(statics_lab_dir, exist_ok=True)
     
-    # 6a. Copy vital scripts from testlab template to new statics folder
-    scripts_to_copy = ["submit.sh"]
-    if include_check_grade:
-        scripts_to_copy.extend(["check.sh", "grade.sh"])
-        
-    for script in scripts_to_copy:
-        src_script = os.path.join(TESTLAB_DIR, script)
-        if os.path.exists(src_script):
-            copy_and_lf(src_script, os.path.join(statics_lab_dir, script))
+    # 6a. Copy submit.sh
+    src_submit = os.path.join(TESTLAB_DIR, "submit.sh")
+    if os.path.exists(src_submit):
+        copy_and_lf(src_submit, os.path.join(statics_lab_dir, "submit.sh"))
             
     # Include the student_workflow.md guide in the starter kit as README.md
     student_workflow_src = os.path.join(ROOT_DIR, "docs", "student_workflow.md")
@@ -559,68 +368,25 @@ def main():
     os.makedirs(ig_course_dir, exist_ok=True)
     shutil.copy2(config_path, os.path.join(ig_course_dir, "config.json"))
     
-    # Global Problem statement
-    if global_prob_stmt and os.path.exists(global_prob_stmt):
-        shutil.copy2(global_prob_stmt, statics_lab_dir)
+    # 6c. Copy Custom Lab Artifacts
+    # lectures/
+    shutil.copytree(lectures_folder, os.path.join(statics_lab_dir, "lectures"))
     
-    # 6c. Setup dummy student directory
+    # previous submissions zip
+    shutil.copy2(submissions_zip, os.path.join(statics_lab_dir, "previous_submissions.zip"))
+    
+    # init script
+    copy_and_lf(set_up_script, os.path.join(statics_lab_dir, "set-up-script"))
+    
+    # starter folder renamed to CS25B0XX
     student_dummy_dir = os.path.join(statics_lab_dir, "CS25B0XX")
-    os.makedirs(student_dummy_dir, exist_ok=True)
-    
-    for q_name, conf in questions_config.items():
-        # Testcases - Server side (PRIVATE ONLY)
-        server_q_dir = os.path.join(STAGING_DIR, "testcases", q_name)
-        copy_testcases_to_engine(conf["private_tc"], server_q_dir, conf["mode"])
-        
-        # Testcases - Student side (PUBLIC ONLY)
-        student_tc_dir = os.path.join(statics_lab_dir, "testcases", q_name)
-        copy_testcases_to_engine(conf["public_tc"], student_tc_dir, conf["mode"])
-        
-        # Static files (LeetCode style) -> Copy to BOTH Server and Student
-        if conf["static_folder"] and os.path.exists(conf["static_folder"]):
-            server_static_dest = os.path.join(server_q_dir, "static")
-            student_static_dest = os.path.join(student_tc_dir, "static")
-            shutil.copytree(conf["static_folder"], server_static_dest)
-            shutil.copytree(conf["static_folder"], student_static_dest)
-            
-        # Starter Code
-        if conf["is_makefile"]:
-            q_folder = os.path.join(student_dummy_dir, q_name)
-            if conf["starter"] and os.path.isdir(conf["starter"]):
-                shutil.copytree(conf["starter"], q_folder)
-            else:
-                os.makedirs(q_folder, exist_ok=True)
-                target = conf.get("target_name", q_name)
-                with open(os.path.join(q_folder, "Makefile"), "w") as f:
-                    f.write(f"all:\n\tgcc -o {target} main.c\n")
-                with open(os.path.join(q_folder, "main.c"), "w") as f:
-                    f.write("#include <stdio.h>\n\nint main() {\n    // Code here\n    return 0;\n}\n")
-        else:
-            if conf["starter"] and os.path.isfile(conf["starter"]):
-                # Preserve the extension of the provided starter file
-                _, actual_ext = os.path.splitext(conf["starter"])
-                starter_dest = os.path.join(student_dummy_dir, f"{q_name}{actual_ext}")
-                copy_and_lf(conf["starter"], starter_dest)
-            else:
-                # Use the prompted extension and generate a minimal template
-                starter_dest = os.path.join(student_dummy_dir, f"{q_name}.{conf['ext']}")
-                with open(starter_dest, "w") as f:
-                    if conf['ext'] == 'c':
-                        f.write("#include <stdio.h>\n\nint main() {\n    // Code here\n    return 0;\n}\n")
-                    elif conf['ext'] == 'cpp':
-                        f.write("#include <iostream>\nusing namespace std;\n\nint main() {\n    // Code here\n    return 0;\n}\n")
-                    elif conf['ext'] == 'py':
-                        f.write("# Write your Python code here\n")
-                    elif conf['ext'] in ['sh', 'awk']:
-                        f.write("# Write your script here\n")
-                    else:
-                        f.write("// Write your code here\n")
+    shutil.copytree(starter_folder, student_dummy_dir)
 
     # Ensure statics has a zip
     shutil.make_archive(os.path.join(STAGING_DIR, "statics", lab_name), 'zip', root_dir=os.path.join(STAGING_DIR, "statics"), base_dir=lab_name)
     
     # Remove the unzipped testlab so it doesn't get deployed as a lab
-    shutil.rmtree(os.path.join(STAGING_DIR, "statics", "testlab"))
+    shutil.rmtree(os.path.join(STAGING_DIR, "statics", "testlab"), ignore_errors=True)
     
     # --- 7. Package Deployment Zip ---
     print(CYAN + "\n[*] Packaging deployment zip..." + RESET)

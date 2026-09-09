@@ -1,0 +1,15 @@
+
+TEST101
+SubmissionLab1
+127.0.0.1
+127.0.0.
+2026-09-06
+0000
+2880
+30
+/Users/skt09/MS/IndiGrader/students.txt
+
+/Users/skt09/MS/cs3100_o23/Lab 2/CS3100_o26/Lab-2
+/Users/skt09/MS/cs3100_o23/Lab 2/CS3100_o26/Lectures
+"/Users/skt09/MS/cs3100_o23/Lab 2/CS3100JUL-NOV 2026-Practice Problems for Lab-2-86957.zip"
+"/Users/skt09/MS/cs3100_o23/Lab 2/set-up-script"

@@ -66,7 +66,7 @@ declare -a SUBMITTED_IS_LATE
 submit_question() {
     local Q_NO_NUM=$1
     local Q_NO="Q${Q_NO_NUM}"
-    local ALLOWED_EXTS=("c" "cpp" "py" "awk")
+    local ALLOWED_EXTS=("c" "cpp" "py" "awk" "ipynb")
     local FILE_PATH=""
 
     for ext in "${ALLOWED_EXTS[@]}"; do
@@ -85,7 +85,7 @@ submit_question() {
 
     # Check if a valid file was found
     if [ -z "$FILE_PATH" ]; then
-        echo -e "${RED}ERROR: Valid source file for ${Q_NO} (.c, .cpp, .py, .awk) not found in ./${ROLL_NO}/${NC}"
+        echo -e "${RED}ERROR: Valid source file for ${Q_NO} (.c, .cpp, .py, .awk, .ipynb) not found in ./${ROLL_NO}/${NC}"
         return 1
     fi
 

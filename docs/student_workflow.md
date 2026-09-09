@@ -45,29 +45,19 @@ ig rebind
 
 ## 3. Local Development and Testing
 
-The student navigates to their specific source directory (e.g., `cd testlab/CS25B012`) to implement their solution. The `ig` CLI tools (`ig check`, `ig submit`) maintain context awareness and can be invoked from any subdirectory within the lab structure.
+The student navigates to their specific source directory (e.g., `cd testlab/CS25B012`) to implement their solution. The `ig submit` tool maintains context awareness and can be invoked from any subdirectory within the lab structure.
 
-To evaluate code against the local public test cases, the student executes:
+## 4. Submitting Files to the Server
 
-```bash
-ig check
-```
-
-This command runs the grading engine locally to provide immediate evaluation output. You can also evaluate a specific question or testcase:
-- `ig check 1` (Runs only Question 1)
-- `ig check 1 4` (Runs only Question 1, Testcase 4)
-
-## 4. Submitting for Server Evaluation
-
-To submit code for formal evaluation, the student invokes:
+To submit your code to the server, invoke:
 
 ```bash
 ig submit
 ```
 
-- The CLI compresses the relevant source files into an archive.
-- The server validates the IP binding and enqueues the submission for processing.
-- The client script polls the server and retrieves the evaluation verdict upon task completion.
+- The CLI packages the relevant source files (`.ipynb`, `.py`, `.c`, etc.).
+- The server validates your IP binding and securely stores the submission.
+- Since this lab uses a distribution-only setup, your submission is accepted without immediate automated grading, and you will see a success message.
 
 ## 5. Handling Late Submissions
 
