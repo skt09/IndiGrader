@@ -102,13 +102,8 @@ submit_question() {
         local CURRENT_SEC=$(date -u +%s)
         local END_SEC=$(date -u -d "$END_TIME" +%s 2>/dev/null)
         if [ -n "$END_SEC" ] && [ "$CURRENT_SEC" -gt "$END_SEC" ]; then
-            echo -e "${YELLOW}You are late for ${Q_NO}. Only one late submission is allowed.${NC}"
+            echo -e "${YELLOW}You are late for ${Q_NO}.${NC}"
             echo -e "${YELLOW}Marks won't be considered during grading.${NC}"
-            read -p "Do you really want to submit ${Q_NO}? (yes/no): " confirm
-            if [ "$confirm" != "yes" ]; then
-                echo "Submission cancelled for ${Q_NO}."
-                return 1
-            fi
             IS_LATE=true
         fi
     fi

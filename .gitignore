@@ -75,3 +75,8 @@ id_rsa*
 .Trashes
 Thumbs.db
 Desktop.ini
+/ig_clients/
+
+discover_configs.py
+ig_clients.zip
+test_*.py

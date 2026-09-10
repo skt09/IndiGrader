@@ -480,8 +480,8 @@ async def handleSubmit(
     if not DEBUG and current_time > lab_config["end_time"] and not is_privileged:
         # Check if already submitted late for this question
         late_dir = os.path.join("late_submissions", qno_upper, roll_upper)
-        if os.path.exists(late_dir) and len(os.listdir(late_dir)) > 0:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"You have already exhausted your single late submission for {qno_upper}.")
+        # if os.path.exists(late_dir) and len(os.listdir(late_dir)) > 0:
+        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"You have already exhausted your single late submission for {qno_upper}.")
         
         is_late = True
 
