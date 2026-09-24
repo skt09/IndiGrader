@@ -154,15 +154,16 @@ Your students can fetch the starter kit directly from the server.
 2. This script retrieves the `ig` command-line tool, downloads the lab package, and registers the workstation's IP address on the server.
 
 ## 7. Last-Minute Config Changes (During the Lab)
-Because performance is critical during peak lab hours, FastAPI loads `config.json` into RAM once at startup rather than reading from disk on every single student request. 
+FastAPI keeps the validated configuration in RAM and checks `config.json`'s modification time at the start of each request. If the file changed, it reloads the new configuration before processing that request; no server restart is required.
 
-If you need to change the lab time, duration, or memory limits on the fly while the lab is running:
-1. Edit the `config.json` file directly on the server (e.g., `nano config.json`).
-2. Restart **just** the FastAPI server using this simple one-liner to force it to reload the file into RAM without disrupting the Celery grading queue:
-   ```bash
-   pkill -f "fastapi run main.py" && fastapi run main.py > logs/fastapi.log 2>&1 &
-   ```
-*(Note: Clients that have previously downloaded the starter kit will retain the prior deadline locally, but the server maintains the authoritative state and will evaluate late submissions according to the updated configuration).*
+If you need to change the lab time, duration, or memory limits while the lab is running:
+1. Edit and save `config.json` directly on the server (e.g., `nano config.json`).
+2. The next request automatically loads the new configuration. To force an immediate reload and log the resulting deadline, send SIGHUP to the FastAPI process:
+    ```bash
+    pkill -HUP -f main.py
+    ```
+
+If `config.json` is temporarily malformed while it is being saved, the server logs the error and continues using the previous valid configuration. A later valid save is detected and loaded automatically.
 
 ## 8. Graceful Shutdown (`stop.sh`)
 When the lab session concludes, avoid terminating the FastAPI server or Celery worker abruptly (e.g., via `Ctrl+C`). Abrupt termination may result in the loss of queued submissions.
