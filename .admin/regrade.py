@@ -2,7 +2,9 @@ import os
 import csv
 import json
 import re
+import shutil
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -136,13 +138,11 @@ def find_submission_path(student_dir: Path, question: str, config_data: Dict) ->
     """Searches a student's directory for the correct submission format."""
     qcfg = config_data.get(question, {})
 
-    # 1. Handle Makefile Mode
+    # 1. Handle Makefile Mode (Stored as a tarball)
     if qcfg.get("makefile", False):
-        project_dir = student_dir / question
-        if project_dir.is_dir():
-            makefile_names = ("Makefile", "makefile", "GNUmakefile")
-            if any((project_dir / name).is_file() for name in makefile_names):
-                return project_dir
+        expected_archive = student_dir / f"{question}.tar.gz"
+        if expected_archive.is_file():
+            return expected_archive
         return None
 
     # 2. Handle specific extension
@@ -340,8 +340,22 @@ def main() -> int:
                 entry['New_Mark'] = 0.0
                 entry['Delta'] = 0.0 - entry['Original_Mark']
                 continue
-                
-            print(f"[*] Evaluating {student_id} for {question} at {submission_path}")
+
+            #handle makefile            
+            temp_dir = None
+            if submission_path.name.endswith(".tar.gz"):
+                # mkdtemp creates the folder and leaves it open. Must be manually cleaned later
+                temp_dir = Path(tempfile.mkdtemp())
+                with tarfile.open(submission_path, "r:gz") as tar:
+                    tar.extractall(path=temp_dir)
+                # Point to the newly extracted directory (e.g., temp_dir/Q1)
+                active_submission_path = temp_dir / question
+            else:
+                # If it's a standard file (.c, .py), just use the original path
+                active_submission_path = submission_path
+
+            print(active_submission_path)
+            print(f"[*] Evaluating {student_id} for {question} at {active_submission_path}")
 
             qcfg = config_data.get(question, {})
             full_marks = float(qcfg.get("full_marks", 100.0))
@@ -351,7 +365,7 @@ def main() -> int:
             for testcase_dir in testcase_dirs:
                 try:
                     result = run_grade_script(
-                        config_path, question, submission_path, testcase_dir
+                        config_path, question, active_submission_path, testcase_dir
                     )
                     
                     has_failed = print_run_result(question, testcase_dir, result)
@@ -375,6 +389,11 @@ def main() -> int:
             entry['Delta'] = total_new_mark - original_mark
             
             print(f"    -> Original: {original_mark} | New: {total_new_mark} | Delta: {entry['Delta']}")
+
+
+            #manually cleaning temp_dir
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir)
 
 
 
