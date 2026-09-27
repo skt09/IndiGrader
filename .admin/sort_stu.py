@@ -73,12 +73,21 @@ def main():
             os.makedirs(stu_out_dir, exist_ok=True)
 
             # Find source file
-            pattern = os.path.join(student_path, f"{q_dir}_{best_ts}.*")
-            matching_files = glob.glob(pattern)
+            pattern = os.path.join(student_path, f"*_{best_ts}*")
+            all_files = glob.glob(pattern)
+            matching_files = [f for f in all_files if os.path.isfile(f) and not os.path.basename(f).startswith("result_")]
             
             if matching_files:
                 src_file = matching_files[0]
-                ext = os.path.splitext(src_file)[1]
+                basename = os.path.basename(src_file)
+                original_name = basename.replace(f"_{best_ts}", "")
+                
+                dot_idx = original_name.find('.')
+                if dot_idx != -1:
+                    ext = original_name[dot_idx:]
+                else:
+                    ext = ""
+                    
                 dst_file = os.path.join(stu_out_dir, f"{q_dir}{ext}")
                 shutil.copy2(src_file, dst_file)
                 count += 1

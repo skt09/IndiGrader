@@ -51,11 +51,24 @@ def main():
                 os.makedirs(stu_out_dir, exist_ok=True)
                 
                 if matching_files:
-                    src_file = matching_files[0]
-                    ext = os.path.splitext(src_file)[1]
-                    dst_file = os.path.join(stu_out_dir, f"{q_dir}{ext}")
-                    shutil.copy2(src_file, dst_file)
-                    count += 1
+                    valid_files = [f for f in matching_files if not os.path.basename(f).startswith("result_")]
+                    if valid_files:
+                        src_file = valid_files[0]
+                        basename = os.path.basename(src_file)
+                        
+                        original_name = basename
+                        if mark_entry and ts_str in basename:
+                            original_name = basename.replace(f"_{ts_str}", "")
+                            
+                        dot_idx = original_name.find('.')
+                        if dot_idx != -1:
+                            ext = original_name[dot_idx:]
+                        else:
+                            ext = ""
+                            
+                        dst_file = os.path.join(stu_out_dir, f"{q_dir}{ext}")
+                        shutil.copy2(src_file, dst_file)
+                        count += 1
                 
                 if mark_entry:
                     consolidated_marks = os.path.join(stu_out_dir, "marks.txt")
