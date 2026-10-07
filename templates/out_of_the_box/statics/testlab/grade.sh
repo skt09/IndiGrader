@@ -79,7 +79,7 @@ if [ "$MAKEFILE_MODE" == "true" ]; then
         cp -rf "${TESTCASES_DIR}/${QUESTION}/static/"* "$BUILD_DIR/" 2>/dev/null
     fi
     cd "$BUILD_DIR" || exit 1
-    if ! make > "compile_log.txt" 2>&1; then
+    if ! make -B > "compile_log.txt" 2>&1; then
         echo "[LOG] Compilation failed:"
         cat "compile_log.txt" | while read -r line; do echo "[LOG] $line"; done
         echo "[VERDICT] ALL: COMPILATION_ERROR"
